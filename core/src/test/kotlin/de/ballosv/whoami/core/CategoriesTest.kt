@@ -33,6 +33,38 @@ class CategoriesTest {
         assertTrue(germanPoliticians.none { it.lastName == "Obama" })
     }
 
+    @Test fun fameLevelsNarrowTheSelection() {
+        val all = count(CelebrityFilter(fame = FameLevel.ALL))
+        val famous = count(CelebrityFilter(fame = FameLevel.FAMOUS))
+        val veryFamous = count(CelebrityFilter(fame = FameLevel.VERY_FAMOUS))
+        assertTrue(veryFamous in 1..famous && famous <= all)
+        // Handgepflegte Personen gelten immer als sehr bekannt
+        assertTrue(CelebrityFilter(fame = FameLevel.VERY_FAMOUS).apply(CELEBRITIES).any { it.lastName == "Merkel" })
+        assertEquals("Alle Kategorien · Bekannt", CelebrityFilter(fame = FameLevel.FAMOUS).describe())
+    }
+
+    @Test fun generatedListIsParsedTieredAndMerged() {
+        val lines = listOf(
+            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks",
+            "Q567\tAngela Merkel\tAngela\tMerkel\tP\t00 10\tD\t250",
+            "Q1\tNeue Person\tNeue\tPerson\tA M\t90 00\tI\t100",
+            "Q2\tZweite Person\tZweite\tPerson\tS H\t50\tD\t60",
+            "Q3\tKaputt\t\t\t\t\tI\t1",
+        )
+        val generated = CelebrityData.parse(lines)
+        assertEquals(3, generated.size)
+        assertEquals(1, generated[0].tier)
+        assertEquals(2, generated[2].tier) // Platz 3 von 4 Zeilen: unter 55 %
+        assertEquals(setOf(Area.ACTING, Area.MUSIC), generated[1].areas)
+        val merged = CelebrityData.merge(CURATED_CELEBRITIES, generated)
+        // Merkel nur einmal, mit Wikidata-ID und Bekanntheit aus der erzeugten Liste
+        val merkel = merged.filter { it.lastName == "Merkel" }
+        assertEquals(1, merkel.size)
+        assertEquals("Q567", merkel[0].qid)
+        assertEquals(250, merkel[0].popularity)
+        assertEquals(CURATED_CELEBRITIES.size + 2, merged.size)
+    }
+
     @Test fun describeListsSelection() {
         val f = CelebrityFilter(areas = setOf(Area.MUSIC), decades = setOf(Decade.D1990, Decade.D1980))
         assertEquals("Musik · 80er, 90er", f.describe())
@@ -47,5 +79,6 @@ class CategoriesTest {
         val s = GameSettings(areas = setOf(Area.SPORT), decades = setOf(Decade.D2020), origins = setOf(Origin.GERMAN))
         val decoded = Message.json.decodeFromString(GameSettings.serializer(), Message.json.encodeToString(GameSettings.serializer(), s))
         assertEquals(s.celebrityFilter, decoded.celebrityFilter)
+        assertEquals(FameLevel.FAMOUS, GameSettings().fame)
     }
 }

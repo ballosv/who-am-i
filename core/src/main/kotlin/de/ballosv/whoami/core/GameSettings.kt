@@ -45,10 +45,11 @@ data class GameSettings(
     val areas: Set<Area> = emptySet(),
     val decades: Set<Decade> = emptySet(),
     val origins: Set<Origin> = emptySet(),
+    val fame: FameLevel = FameLevel.FAMOUS,
 ) {
     val tileCount: Int get() = gridSize * gridSize
 
-    val celebrityFilter: CelebrityFilter get() = CelebrityFilter(areas, decades, origins)
+    val celebrityFilter: CelebrityFilter get() = CelebrityFilter(areas, decades, origins, fame)
 
     fun normalized(): GameSettings = copy(
         gridSize = gridSize.coerceIn(MIN_GRID, MAX_GRID),

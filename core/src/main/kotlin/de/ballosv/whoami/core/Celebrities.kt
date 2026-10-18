@@ -32,7 +32,8 @@ private fun p(first: String, last: String, areas: String, decades: String, germa
     origin = if (german) Origin.GERMAN else Origin.INTERNATIONAL,
 )
 
-val CELEBRITIES: List<Celebrity> = listOf(
+/** Von Hand gepflegte Personen mit genau zugeordneten Kategorien (immer Bekanntheitsstufe 1). */
+val CURATED_CELEBRITIES: List<Celebrity> = listOf(
     // Film & Fernsehen
     p("Leonardo", "DiCaprio", "A", "90 00 10 20", INT),
     p("Brad", "Pitt", "A", "90 00 10 20", INT),
