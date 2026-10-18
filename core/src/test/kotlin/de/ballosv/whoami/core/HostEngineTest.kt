@@ -147,6 +147,66 @@ class HostEngineTest {
         assertEquals(8, decoded.snapshot.settings.tileGapDp)
     }
 
+    @Test fun allPassedRevealsWithoutPoints() {
+        val e = engine()
+        e.setPassed("host", true, 2_000)
+        assertEquals(Phase.REVEALING, e.snapshot.phase)
+        assertEquals(listOf("host"), e.snapshot.passedIds)
+        e.setPassed("p2", true, 2_500)
+        val s = e.snapshot
+        assertEquals(Phase.ROUND_RESULT, s.phase)
+        assertEquals(EventType.ALL_PASSED, s.lastEvent!!.type)
+        assertEquals("Angela Merkel", s.solution)
+        assertEquals(9, s.revealedAt(2_500))
+        assertTrue(s.players.all { it.score == 0 })
+        // Neue Runde: Pässe zurückgesetzt
+        e.tick(2_500 + HostEngine.RESULT_MS)
+        assertTrue(e.snapshot.passedIds.isEmpty())
+    }
+
+    @Test fun passCanBeWithdrawn() {
+        val e = engine()
+        e.setPassed("host", true, 2_000)
+        e.setPassed("host", false, 2_100)
+        e.setPassed("p2", true, 2_200)
+        assertEquals(Phase.REVEALING, e.snapshot.phase)
+        assertEquals(listOf("p2"), e.snapshot.passedIds)
+    }
+
+    @Test fun buzzingWithdrawsPassAndPassWaitsForAnswer() {
+        val e = engine()
+        e.setPassed("p2", true, 2_000)
+        e.buzz("p2", 2_100, 2_100)
+        assertFalse(e.snapshot.hasPassed("p2"))
+        // Host passt, während p2 antwortet: Runde läuft weiter bis zur Antwort
+        e.setPassed("host", true, 2_200)
+        assertEquals(Phase.ANSWERING, e.snapshot.phase)
+        e.setPassed("p2", true, 2_300) // wer antwortet, kann nicht passen
+        assertFalse(e.snapshot.hasPassed("p2"))
+        e.answer("p2", "falsch", 2_400)
+        assertEquals(Phase.REVEALING, e.snapshot.phase)
+        e.setPassed("p2", true, 2_500)
+        assertEquals(Phase.ROUND_RESULT, e.snapshot.phase)
+    }
+
+    @Test fun disconnectOfLastNonPasserEndsRound() {
+        val e = engine()
+        e.setPassed("host", true, 2_000)
+        e.setConnected("p2", false, 2_100)
+        assertEquals(Phase.ROUND_RESULT, e.snapshot.phase)
+    }
+
+    @Test fun battleOwnerCannotPass() {
+        val e = HostEngine(settings.copy(mode = GameMode.BATTLE), PlayerInfo("h", "H"))
+        e.addOrUpdatePlayer("p", "P")
+        e.startCountdown(listOf(Question("x", "A", "Bcdef", ownerId = "h")), 0, 0)
+        e.tick(0)
+        e.setPassed("h", true, 10)
+        assertTrue(e.snapshot.passedIds.isEmpty())
+        e.setPassed("p", true, 20)
+        assertEquals(Phase.ROUND_RESULT, e.snapshot.phase)
+    }
+
     @Test fun protocolRoundTrip() {
         val msg = Message.State(engine().snapshot)
         assertEquals(msg, Message.decode(Message.encode(msg)))

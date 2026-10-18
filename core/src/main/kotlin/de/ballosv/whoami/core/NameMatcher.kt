@@ -16,17 +16,29 @@ object NameMatcher {
         val first = normalize(firstName).replace(" ", "")
         // Ohne Nachnamen (z. B. Künstlername im Vornamenfeld) zählt der Vorname als Name.
         if (last.isEmpty()) return first.isNotEmpty() && containsFuzzy(tokens, first)
-        val lastOk = containsFuzzy(tokens, last)
+        // „von der Leyen“, „da Vinci“, „van Gogh“: auch ohne Namenszusatz gültig
+        val lastOk = containsFuzzy(tokens, last) || lastWithoutParticles(lastName)?.let { containsFuzzy(tokens, it) } == true
         return when (accuracy) {
             AnswerAccuracy.LAST_NAME -> lastOk
             AnswerAccuracy.FULL_NAME -> lastOk && (first.isEmpty() || containsFuzzy(tokens, first))
         }
     }
 
+    private val PARTICLES = setOf("von", "van", "der", "den", "de", "da", "di", "du", "del", "la", "le", "zu", "zum", "ten", "ter", "al", "el")
+
+    private fun lastWithoutParticles(lastName: String): String? {
+        val parts = normalize(lastName).split(' ').filter { it.isNotEmpty() }
+        val core = parts.dropWhile { it in PARTICLES }
+        if (core.isEmpty() || core.size == parts.size) return null
+        return core.joinToString("")
+    }
+
     fun normalize(text: String): String {
         val replaced = text.lowercase()
             .replace("ß", "ss")
             .replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")
+            // Buchstaben, die Unicode nicht in Grundbuchstabe + Akzent zerlegt
+            .replace("đ", "dj").replace("ł", "l").replace("ø", "o").replace("æ", "ae").replace("œ", "oe").replace("ı", "i")
         val stripped = Normalizer.normalize(replaced, Normalizer.Form.NFD)
             .replace(Regex("\\p{M}+"), "")
         return stripped.replace(Regex("[^a-z0-9]+"), " ").trim()

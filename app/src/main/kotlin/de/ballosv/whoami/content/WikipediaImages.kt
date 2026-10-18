@@ -1,5 +1,6 @@
 package de.ballosv.whoami.content
 
+import de.ballosv.whoami.core.Freshness
 import de.ballosv.whoami.core.Question
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,12 +21,21 @@ object WikipediaImages {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * Wählt [count] zufällige Personen mit Bild aus, legt die Bilder in [store] ab und
-     * liefert die passenden Fragen. [progress] erhält Werte von 0 bis 1.
+     * Wählt [count] Personen mit Bild aus, legt die Bilder in [store] ab und liefert die
+     * passenden Fragen. Personen, die noch nie oder am längsten nicht dran waren, haben
+     * Vorrang (siehe [CelebrityHistory]). [progress] erhält Werte von 0 bis 1.
      */
-    suspend fun loadQuestions(count: Int, store: ImageStore, progress: (Float) -> Unit): List<Question> =
+    suspend fun loadQuestions(
+        count: Int,
+        store: ImageStore,
+        history: CelebrityHistory,
+        progress: (Float) -> Unit,
+    ): List<Question> =
         withContext(Dispatchers.IO) {
-            val candidates = CELEBRITIES.shuffled().toMutableList()
+            val candidates = Freshness.order(CELEBRITIES, history.recent()) { it.wikiTitle }.toMutableList()
+            val used = mutableListOf<String>()
+            // Ohne Bild übersprungene Personen ebenfalls merken, damit sie nicht jedes Mal zuerst probiert werden.
+            val skipped = mutableListOf<String>()
             val result = mutableListOf<Question>()
             var lastError: Exception? = null
             while (result.size < count && candidates.isNotEmpty()) {
@@ -38,7 +48,11 @@ object WikipediaImages {
                 }
                 for (celebrity in batch) {
                     if (result.size >= count) break
-                    val url = urls[celebrity.wikiTitle] ?: continue
+                    val url = urls[celebrity.wikiTitle]
+                    if (url == null) {
+                        skipped += celebrity.wikiTitle
+                        continue
+                    }
                     val bytes = try {
                         download(url)?.let { Images.fromBytes(it) }
                     } catch (e: IOException) {
@@ -48,13 +62,15 @@ object WikipediaImages {
                     val id = "c" + result.size + "_" + celebrity.wikiTitle.hashCode().toUInt().toString(16)
                     store.put(id, bytes)
                     result += Question(id, celebrity.firstName, celebrity.lastName)
+                    used += celebrity.wikiTitle
                     progress(result.size.toFloat() / count)
                 }
             }
             if (result.isEmpty()) {
                 throw IOException("Promi-Bilder konnten nicht geladen werden. Besteht eine Internetverbindung?", lastError)
             }
-            result
+            history.record(skipped + used)
+            result.shuffled()
         }
 
     /** Artikeltitel -> URL eines etwa 900 px großen Vorschaubilds. */

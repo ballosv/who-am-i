@@ -40,7 +40,7 @@ data class Question(
 }
 
 @Serializable
-enum class EventType { CORRECT, WRONG, TIMEOUT, UNSOLVED }
+enum class EventType { CORRECT, WRONG, TIMEOUT, UNSOLVED, ALL_PASSED }
 
 @Serializable
 data class GameEvent(
@@ -78,6 +78,8 @@ data class GameSnapshot(
     val answerDeadline: Long = 0,
     val buzzPoints: Int = 0,
     val buzzPressedAt: Long = 0,
+    /** Spieler, die in der aktuellen Runde gepasst haben. */
+    val passedIds: List<String> = emptyList(),
     val lastEvent: GameEvent? = null,
     val solution: String? = null,
     val nextRoundAt: Long = 0,
@@ -105,6 +107,11 @@ data class GameSnapshot(
     fun pointsAt(hostTime: Long): Int = Scoring.pointsFor(settings, revealedAt(hostTime))
 
     fun player(id: String?): PlayerInfo? = players.firstOrNull { it.id == id }
+
+    /** Spieler, die in dieser Runde raten (und passen) können: verbunden und nicht Besitzer des Bildes. */
+    val guessers: List<PlayerInfo> get() = players.filter { it.connected && it.id != ownerId }
+
+    fun hasPassed(id: String): Boolean = id in passedIds
 
     val ranking: List<PlayerInfo> get() = players.sortedWith(compareByDescending<PlayerInfo> { it.score }.thenBy { it.name })
 }

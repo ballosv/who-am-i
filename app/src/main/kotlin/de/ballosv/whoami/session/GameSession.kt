@@ -33,6 +33,9 @@ interface GameSession {
     fun setReady(ready: Boolean)
     fun setBattleEntries(entries: List<BattleEntry>)
     fun buzz()
+
+    /** Passen bzw. Passen zurücknehmen. */
+    fun setPassed(passed: Boolean)
     fun answer(text: String)
     fun consumeNotice()
     fun close()
