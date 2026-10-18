@@ -41,6 +41,8 @@ data class GameSettings(
     /** true: falsche Antwort kostet 50 % des aktuell möglichen Punktewerts, sonst [fixedPenalty]. */
     val halfPointsPenalty: Boolean = true,
     val fixedPenalty: Int = 100,
+    /** Nach der letzten Kachel den Namen Buchstabe für Buchstabe einblenden (siehe [NameReveal]). */
+    val revealName: Boolean = false,
     /** Kategorien für Promi-Bilder; leer bedeutet jeweils „alle“. */
     val areas: Set<Area> = emptySet(),
     val decades: Set<Decade> = emptySet(),
