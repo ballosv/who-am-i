@@ -3,6 +3,14 @@ package de.ballosv.whoami.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
+import de.ballosv.whoami.core.Area
+import de.ballosv.whoami.core.CELEBRITIES
+import de.ballosv.whoami.core.Decade
+import de.ballosv.whoami.core.Origin
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -67,6 +75,8 @@ fun SettingsScreen(vm: AppViewModel, multiplayer: Boolean) {
                 val final = settings.normalized()
                 if (multiplayer) vm.hostMultiplayer(final) else vm.startSingle(final)
             },
+            // Ohne passende Person kann kein Promi-Spiel starten (Battle bringt eigene Bilder mit).
+            enabled = settings.mode == GameMode.BATTLE || settings.celebrityFilter.apply(CELEBRITIES).isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(60.dp),
             shape = RoundedCornerShape(20.dp),
         ) {
@@ -92,6 +102,7 @@ fun SettingsEditor(settings: GameSettings, multiplayer: Boolean, onChange: (Game
             )
         }
     }
+    if (s.mode != GameMode.BATTLE) CategoryPicker(s, onChange)
     SectionCard("Spielrunde") {
         LabeledSlider(
             "Anzahl Kacheln", "${s.tileCount} (${s.gridSize}×${s.gridSize})",
@@ -205,6 +216,72 @@ private fun TileGapPreview(gridSize: Int, gapDp: Int, modifier: Modifier = Modif
                 topLeft = Offset(x + gap, y + gap),
                 size = Size((cell - 2 * gap).coerceAtLeast(0f), (cell - 2 * gap).coerceAtLeast(0f)),
                 cornerRadius = CornerRadius(4.dp.toPx()),
+            )
+        }
+    }
+}
+
+/**
+ * Kategorien für die Promi-Bilder. Ohne Auswahl in einer Gruppe gilt dort „alle“.
+ * Innerhalb einer Gruppe wird „oder“, zwischen den Gruppen „und“ verknüpft.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
+    val available = remember(s.areas, s.decades, s.origins) { s.celebrityFilter.apply(CELEBRITIES).size }
+    SectionCard("Kategorien") {
+        Text(
+            "Ohne Auswahl sind alle Personen dabei. Mehrere Kategorien einer Gruppe werden kombiniert, " +
+                "z. B. Musik + 80er = Musiker der 80er.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ChipGroup("Bereich", Area.entries, s.areas, { it.label }) { onChange(s.copy(areas = it)) }
+        ChipGroup("Jahrzehnt", Decade.entries, s.decades, { it.label }) { onChange(s.copy(decades = it)) }
+        ChipGroup("Herkunft", Origin.entries, s.origins, { it.label }) { onChange(s.copy(origins = it)) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                when {
+                    s.celebrityFilter.isAll -> "Alle $available Personen"
+                    available == 1 -> "1 Person passt zur Auswahl"
+                    else -> "$available Personen passen zur Auswahl"
+                },
+                fontWeight = FontWeight.Bold,
+                color = if (available == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            if (!s.celebrityFilter.isAll) {
+                TextButton(onClick = { onChange(s.copy(areas = emptySet(), decades = emptySet(), origins = emptySet())) }) {
+                    Text("Alle")
+                }
+            }
+        }
+        when {
+            available == 0 -> Text(
+                "Keine Person passt – bitte Auswahl ändern.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            available < s.personCount -> Text(
+                "Weniger Personen als pro Runde eingestellt – es werden nur so viele gezeigt, wie es gibt.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> ChipGroup(title: String, options: List<T>, selected: Set<T>, label: (T) -> String, onChange: (Set<T>) -> Unit) {
+    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { option ->
+            val isSelected = option in selected
+            FilterChip(
+                selected = isSelected,
+                onClick = { onChange(if (isSelected) selected - option else selected + option) },
+                label = { Text(label(option)) },
             )
         }
     }

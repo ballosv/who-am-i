@@ -11,6 +11,10 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
   Minimum), Antwortzeit und Strafe (50 % des aktuellen Punktewerts oder fester Abzug)
 - **Buzzer:** Die Kachel-Uhr pausiert, der Spieler tippt den Namen oder sagt ihn (Spracherkennung).
   Bei falscher Antwort oder abgelaufener Zeit gibt es einen Punkteabzug, danach läuft die Runde weiter.
+- **Kategorien:** Bereich (Film & Schauspiel, Musik, TV & Comedy, Sport, Politik & Gesellschaft,
+  Wissenschaft & Wirtschaft, Kunst & Literatur, Mode & Models, Geschichte), Jahrzehnt (50er & früher
+  bis 2020er) und Herkunft (Deutsche Promis / International). Innerhalb einer Gruppe gilt „oder“,
+  zwischen den Gruppen „und“ (Musik + 80er = Musiker der 80er). Ohne Auswahl sind alle Personen dabei.
 - **Passen:** Wer keine Idee hat, passt (und kann das wieder zurücknehmen). Haben alle ratenden
   Spieler gepasst, werden alle Kacheln aufgedeckt und die Person aufgelöst – ohne Punkte.
 - **Punkteanzeige:** Zeigt die aktuell möglichen Punkte, jede Verringerung ist animiert.
@@ -49,7 +53,7 @@ Die TV-Webseite macht dasselbe gegen die Uhr des Host-Handys.
 
 Die Porträts kommen zur Laufzeit aus der deutschsprachigen Wikipedia (Artikelbild, freie Lizenzen).
 Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bekommen die Bilder vom Host.
-Die Personenliste (rund 400 Personen) steht in `app/src/main/kotlin/de/ballosv/whoami/content/Celebrities.kt`.
+Die Personenliste (426 Personen mit Kategorien) steht in `core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
 deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele Runden hinweg niemand.
 
