@@ -139,7 +139,8 @@ function frame() {
   else if (s.phase === 'PREPARING') html = (s.message ? esc(s.message) : 'Bilder werden vorbereitet …') + `<div style="font-size:4vh">${Math.round(s.preparingProgress * 100)} %</div>`;
   else if (s.phase === 'COUNTDOWN') { const c = Math.ceil((s.countdownEndsAt - t) / 1000); html = c > 0 ? `<div class="big">${c}</div>` : ''; }
   else if (s.phase === 'REVEALING' && t < s.revealAnchor) html = `Nächste Person …`;
-  else if (s.phase === 'ROUND_RESULT') html = `<div style="color:var(--muted);font-size:4vh">Das war</div><div class="big" style="font-size:12vh">${esc(s.solution || '')}</div>` + $('status').innerHTML;
+  else if (s.phase === 'ROUND_RESULT') html = `<div style="color:var(--muted);font-size:4vh">Das war</div><div class="big" style="font-size:12vh">${esc(s.solution || '')}</div>` + $('status').innerHTML +
+    (s.credit ? `<div style="font-size:2vh;color:var(--muted)">${esc(s.credit)}</div>` : '');
   else if (s.phase === 'FINISHED') {
     const r = [...s.players].sort((a, b) => b.score - a.score);
     html = `<div class="big" style="font-size:12vh">🏆 ${esc(r[0] ? r[0].name : '')}</div>` + r.map((p, i) => `${i + 1}. ${esc(p.name)} – ${p.score}`).join('<br>');

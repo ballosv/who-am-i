@@ -152,6 +152,15 @@ private fun BoardOverlay(s: GameSnapshot, clock: State<Long>, modifier: Modifier
                         color = if (e?.type == EventType.CORRECT) Good else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
                     )
+                    s.credit?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                        )
+                    }
                 }
             }
         }

@@ -51,7 +51,11 @@ Die TV-Webseite macht dasselbe gegen die Uhr des Host-Handys.
 
 ## Promi-Bilder
 
-Die Porträts kommen zur Laufzeit aus der deutschsprachigen Wikipedia (Artikelbild, freie Lizenzen).
+Die Porträts kommen zur Laufzeit von **Wikimedia Commons** (freie Lizenzen): Über die Wikidata-ID einer
+Person werden Fotos gesucht, die sie laut Commons zeigen. Eine Gesichtserkennung auf dem Gerät (ML Kit)
+nimmt nur Einzelporträts und schneidet sie auf das Gesicht zu. Pro Person merkt sich die App, welche Fotos
+schon gezeigt wurden, damit möglichst jedes Mal ein anderes kommt. Notfalls wird das Artikelbild der
+deutschsprachigen Wikipedia verwendet. Urheber und Lizenz stehen bei der Auflösung unter dem Namen.
 Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bekommen die Bilder vom Host.
 Die Personenliste (426 Personen mit Kategorien) steht in `core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
