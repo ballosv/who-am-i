@@ -11,7 +11,7 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
   Minimum), Antwortzeit und Strafe (50 % des aktuellen Punktewerts oder fester Abzug)
 - **Buzzer:** Die Kachel-Uhr pausiert, der Spieler tippt den Namen oder sagt ihn (Spracherkennung).
   Bei falscher Antwort oder abgelaufener Zeit gibt es einen Punkteabzug, danach läuft die Runde weiter.
-- **Kategorien:** Bereich (Film & Schauspiel, Musik, TV & Comedy, Sport, Politik & Gesellschaft,
+- **Kategorien:** Bekanntheit (Sehr bekannt / Bekannt / Alle), Bereich (Film & Schauspiel, Musik, TV & Comedy, Sport, Politik & Gesellschaft,
   Wissenschaft & Wirtschaft, Kunst & Literatur, Mode & Models, Geschichte), Jahrzehnt (50er & früher
   bis 2020er) und Herkunft (Deutsche Promis / International). Innerhalb einer Gruppe gilt „oder“,
   zwischen den Gruppen „und“ (Musik + 80er = Musiker der 80er). Ohne Auswahl sind alle Personen dabei.
@@ -57,7 +57,12 @@ nimmt nur Einzelporträts und schneidet sie auf das Gesicht zu. Pro Person merkt
 schon gezeigt wurden, damit möglichst jedes Mal ein anderes kommt. Notfalls wird das Artikelbild der
 deutschsprachigen Wikipedia verwendet. Urheber und Lizenz stehen bei der Auflösung unter dem Namen.
 Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bekommen die Bilder vom Host.
-Die Personenliste (426 Personen mit Kategorien) steht in `core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`.
+**Personen:** 426 von Hand gepflegte Personen (`core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`)
+plus mehrere Tausend aus Wikidata erzeugte (`core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv`).
+Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenliste erzeugen*: Bereich aus dem Beruf,
+Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten, Bekanntheit aus der Anzahl
+der Wikipedia-Sprachversionen (deutschsprachige Personen mit Bonus). Daraus ergeben sich drei Bekanntheitsstufen,
+einstellbar als *Sehr bekannt*, *Bekannt* (Standard) und *Alle*. Bekanntere Personen kommen häufiger dran.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
 deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele Runden hinweg niemand.
 

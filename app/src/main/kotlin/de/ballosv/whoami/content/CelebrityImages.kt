@@ -49,7 +49,9 @@ object CelebrityImages {
         progress: (Float) -> Unit,
     ): List<Question> = withContext(Dispatchers.IO) {
         if (pool.isEmpty()) throw IOException("Zu den gewählten Kategorien gibt es keine Personen.")
-        val candidates = Freshness.order(pool, history.recent()) { it.wikiTitle }.toMutableList()
+        // Bekanntere Personen kommen häufiger dran, aber jede irgendwann.
+        val candidates = Freshness.order(pool, history.recent(), weight = { it.popularity.toDouble().coerceAtLeast(1.0) }) { it.wikiTitle }
+            .toMutableList()
         val result = mutableListOf<Question>()
         val used = mutableListOf<String>()
         // Ohne Bild übersprungene Personen ebenfalls merken, damit sie nicht jedes Mal zuerst probiert werden.
@@ -105,7 +107,7 @@ object CelebrityImages {
     }
 
     private fun portraitFor(celebrity: Celebrity, article: Article?, photos: PhotoHistory): Portrait? {
-        val qid = article?.qid
+        val qid = celebrity.qid ?: article?.qid
         if (qid != null) {
             val seen = photos.shown(celebrity.wikiTitle)
             val candidates = runCatching { CommonsPhotos.depicting(qid) }.getOrDefault(emptyList())

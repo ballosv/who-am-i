@@ -73,6 +73,16 @@ class FreshnessTest {
         }
     }
 
+    @Test fun weightPrefersPopularAmongUnseen() {
+        val items = listOf("star", "nobody")
+        var starFirst = 0
+        repeat(1000) { seed ->
+            val order = Freshness.order(items, emptyList(), kotlin.random.Random(seed), weight = { if (it == "star") 9.0 else 1.0 }) { it }
+            if (order.first() == "star") starFirst++
+        }
+        assertTrue(starFirst in 850..950) // erwartet 90 %
+    }
+
     @Test fun rotatesThroughAllBeforeRepeating() {
         val items = (1..12).map { "p$it" }
         val history = mutableListOf<String>()

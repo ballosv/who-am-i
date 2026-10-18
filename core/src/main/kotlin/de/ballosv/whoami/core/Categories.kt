@@ -35,6 +35,14 @@ enum class Origin(val label: String) {
     INTERNATIONAL("International"),
 }
 
+/** Wie bekannt die Personen mindestens sein sollen (Stufe 1 = sehr bekannt). */
+@Serializable
+enum class FameLevel(val label: String, val maxTier: Int) {
+    VERY_FAMOUS("Sehr bekannt", 1),
+    FAMOUS("Bekannt", 2),
+    ALL("Alle", 3),
+}
+
 /** Prominente Person; [wikiTitle] ist der Artikel in der deutschsprachigen Wikipedia. */
 data class Celebrity(
     val firstName: String,
@@ -43,7 +51,15 @@ data class Celebrity(
     val areas: Set<Area>,
     val decades: Set<Decade>,
     val origin: Origin,
-)
+    /** Wikidata-ID, falls bekannt (sonst ermittelt die App sie über den Artikel). */
+    val qid: String? = null,
+    /** Bekanntheit (Anzahl Wikipedia-Sprachversionen); bekanntere Personen kommen häufiger dran. */
+    val popularity: Int = 0,
+    /** Bekanntheitsstufe 1–3, siehe [FameLevel]. */
+    val tier: Int = 1,
+) {
+    val displayName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
+}
 
 /**
  * Auswahl von Kategorien. Innerhalb einer Gruppe reicht eine passende Kategorie (oder),
@@ -54,23 +70,30 @@ data class CelebrityFilter(
     val areas: Set<Area> = emptySet(),
     val decades: Set<Decade> = emptySet(),
     val origins: Set<Origin> = emptySet(),
+    val fame: FameLevel = FameLevel.ALL,
 ) {
+    /** Keine Kategorie gewählt (die Bekanntheitsstufe zählt hier nicht mit). */
     val isAll: Boolean get() = areas.isEmpty() && decades.isEmpty() && origins.isEmpty()
 
     fun matches(c: Celebrity): Boolean =
-        (areas.isEmpty() || c.areas.any { it in areas }) &&
+        c.tier <= fame.maxTier &&
+            (areas.isEmpty() || c.areas.any { it in areas }) &&
             (decades.isEmpty() || c.decades.any { it in decades }) &&
             (origins.isEmpty() || c.origin in origins)
 
-    fun apply(all: List<Celebrity>): List<Celebrity> = if (isAll) all else all.filter(::matches)
+    fun apply(all: List<Celebrity>): List<Celebrity> =
+        if (isAll && fame == FameLevel.ALL) all else all.filter(::matches)
 
     /** Kurzbeschreibung für Anzeigen, z. B. „Musik · 80er, 90er“. */
-    fun describe(): String = if (isAll) {
-        "Alle Kategorien"
-    } else {
-        listOf(areas, decades, origins)
-            .filter { it.isNotEmpty() }
-            .joinToString(" · ") { group -> group.sortedBy { (it as Enum<*>).ordinal }.joinToString(", ") { label(it) } }
+    fun describe(): String {
+        val categories = if (isAll) {
+            "Alle Kategorien"
+        } else {
+            listOf(areas, decades, origins)
+                .filter { it.isNotEmpty() }
+                .joinToString(" · ") { group -> group.sortedBy { (it as Enum<*>).ordinal }.joinToString(", ") { label(it) } }
+        }
+        return if (fame == FameLevel.ALL) categories else "$categories · ${fame.label}"
     }
 
     private fun label(value: Any): String = when (value) {
