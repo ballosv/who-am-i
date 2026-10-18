@@ -1,0 +1,11 @@
+name: Bilder-Diagnose
+on:
+  push:
+    branches: ["claude/**"]
+    paths: ["tools/diagnose_images.py"]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/diagnose_images.py
