@@ -231,6 +231,7 @@ fun RankingRow(snapshot: GameSnapshot, myId: String, modifier: Modifier = Modifi
                 me = player.id == myId,
                 buzzing = player.id == snapshot.buzzPlayerId,
                 owner = player.id == snapshot.ownerId,
+                passed = snapshot.hasPassed(player.id),
                 modifier = Modifier.animateItem(),
             )
         }
@@ -238,7 +239,15 @@ fun RankingRow(snapshot: GameSnapshot, myId: String, modifier: Modifier = Modifi
 }
 
 @Composable
-fun PlayerChip(rank: Int, player: PlayerInfo, me: Boolean, buzzing: Boolean, owner: Boolean, modifier: Modifier = Modifier) {
+fun PlayerChip(
+    rank: Int,
+    player: PlayerInfo,
+    me: Boolean,
+    buzzing: Boolean,
+    owner: Boolean,
+    passed: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val border = when {
         buzzing -> Accent
         me -> MaterialTheme.colorScheme.secondary
@@ -261,6 +270,7 @@ fun PlayerChip(rank: Int, player: PlayerInfo, me: Boolean, buzzing: Boolean, own
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (owner) Text("zeigt Bild", color = Accent, style = MaterialTheme.typography.labelSmall)
+                if (passed) Text("passt", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
             Spacer(Modifier.width(6.dp))
             Text("${player.score}", fontWeight = FontWeight.Black)

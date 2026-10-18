@@ -30,7 +30,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -142,7 +144,11 @@ private fun BoardOverlay(s: GameSnapshot, clock: State<Long>, modifier: Modifier
                     Text(s.solution ?: "", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center)
                     val e = s.lastEvent
                     Text(
-                        if (e?.type == EventType.CORRECT) "${s.player(e.playerId)?.name} +${e.points}" else "Niemand hat es erraten",
+                        when (e?.type) {
+                            EventType.CORRECT -> "${s.player(e.playerId)?.name} +${e.points}"
+                            EventType.ALL_PASSED -> "Alle haben gepasst"
+                            else -> "Niemand hat es erraten"
+                        },
                         color = if (e?.type == EventType.CORRECT) Good else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
                     )
@@ -190,16 +196,41 @@ private fun ActionArea(session: GameSession, s: GameSnapshot, clock: State<Long>
             )
             else -> {
                 val active by remember(s) { derivedStateOf { s.phase == Phase.REVEALING && clock.value >= s.revealAnchor } }
-                BuzzerButton(
-                    enabled = active,
-                    label = "BUZZ!",
-                    size = if (tv) 220 else 140,
-                    onBuzz = {
-                        vibrate(context)
-                        session.buzz()
-                    },
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BuzzerButton(
+                        enabled = active,
+                        label = "BUZZ!",
+                        size = if (tv) 220 else 140,
+                        onBuzz = {
+                            vibrate(context)
+                            session.buzz()
+                        },
+                    )
+                    PassButton(s, myId, enabled = active, onToggle = session::setPassed)
+                }
             }
+        }
+    }
+}
+
+/** Passen: Haben alle ratenden Spieler gepasst, wird die Person aufgelöst. Passen lässt sich zurücknehmen. */
+@Composable
+private fun PassButton(s: GameSnapshot, myId: String, enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    val passed = s.hasPassed(myId)
+    val guessers = s.guessers
+    val count = guessers.count { s.hasPassed(it.id) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (passed) {
+            Button(onClick = { onToggle(false) }, enabled = enabled) { Text("Passen zurücknehmen") }
+        } else {
+            OutlinedButton(onClick = { onToggle(true) }, enabled = enabled) { Text("Passen") }
+        }
+        if (guessers.size > 1 && count > 0) {
+            Text(
+                "$count von ${guessers.size} haben gepasst",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -248,7 +279,7 @@ private fun rememberEventBanner(s: GameSnapshot, myId: String): BannerInfo? {
             EventType.WRONG -> BannerInfo("$who: „${e.answer}“ ist falsch  ${e.points}", Bad, e.id)
             EventType.TIMEOUT -> BannerInfo("$who: Zeit abgelaufen  ${e.points}", Bad, e.id)
             EventType.CORRECT -> BannerInfo("$who: richtig!  +${e.points}", Good, e.id)
-            EventType.UNSOLVED -> null
+            EventType.UNSOLVED, EventType.ALL_PASSED -> null
         }
         if (e.playerId == myId && e.type != EventType.CORRECT) vibrate(context, long = true)
         delay(2_800)

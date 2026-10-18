@@ -69,6 +69,8 @@ class HostEngine(
         if (!connected && snapshot.phase == Phase.ANSWERING && snapshot.buzzPlayerId == id) {
             failAnswer(now, EventType.TIMEOUT, null)
         }
+        // Fehlt nun nur noch der Pass eines getrennten Spielers, ist die Runde vorbei.
+        if (!connected) checkAllPassed(now)
     }
 
     fun setReady(id: String, ready: Boolean) {
@@ -156,6 +158,7 @@ class HostEngine(
                 buzzPlayerId = null,
                 solution = null,
                 answerDeadline = 0,
+                passedIds = emptyList(),
             )
         }
     }
@@ -186,6 +189,8 @@ class HostEngine(
                 update {
                     it.copy(
                         phase = Phase.ANSWERING,
+                        // Wer buzzert, hat es sich anders überlegt.
+                        passedIds = it.passedIds - playerId,
                         buzzPlayerId = playerId,
                         buzzPoints = points,
                         pausedAt = now,
@@ -211,6 +216,36 @@ class HostEngine(
                 return true
             }
             else -> return false
+        }
+    }
+
+    /**
+     * Ein Spieler passt (oder nimmt das Passen zurück). Haben alle ratenden Spieler gepasst,
+     * wird die Person aufgelöst und niemand bekommt Punkte.
+     */
+    fun setPassed(playerId: String, passed: Boolean, now: Long) {
+        val s = snapshot
+        if (s.phase != Phase.REVEALING && s.phase != Phase.ANSWERING) return
+        if (!canBuzz(playerId) || s.buzzPlayerId == playerId) return
+        update { it.copy(passedIds = if (passed) (it.passedIds - playerId) + playerId else it.passedIds - playerId) }
+        if (passed) checkAllPassed(now)
+    }
+
+    private fun checkAllPassed(now: Long) {
+        val s = snapshot
+        // Während jemand antwortet, wird erst seine Antwort abgewartet.
+        if (s.phase != Phase.REVEALING) return
+        val guessers = s.guessers
+        if (guessers.isEmpty() || !guessers.all { s.hasPassed(it.id) }) return
+        val q = questions[s.roundIndex]
+        update {
+            it.copy(
+                phase = Phase.ROUND_RESULT,
+                solution = q.displayName,
+                lastEvent = GameEvent(++eventCounter, EventType.ALL_PASSED),
+                nextRoundAt = now + RESULT_MS,
+                pausedAt = null,
+            )
         }
     }
 
@@ -253,6 +288,7 @@ class HostEngine(
                 pausedAt = null,
             )
         }
+        checkAllPassed(now)
     }
 
     fun tick(now: Long) {

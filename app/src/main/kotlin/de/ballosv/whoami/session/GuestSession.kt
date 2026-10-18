@@ -131,6 +131,8 @@ class GuestSession(
 
     override fun answer(text: String) = nearby.send(Message.Answer(text))
 
+    override fun setPassed(passed: Boolean) = nearby.send(Message.Pass(passed))
+
     override fun consumeNotice() {
         _notice.value = null
     }

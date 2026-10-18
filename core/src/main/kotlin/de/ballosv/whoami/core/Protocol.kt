@@ -24,6 +24,9 @@ sealed class Message {
     @Serializable @SerialName("buzz")
     data class Buzz(val hostTime: Long) : Message()
 
+    @Serializable @SerialName("pass")
+    data class Pass(val passed: Boolean) : Message()
+
     @Serializable @SerialName("answer")
     data class Answer(val text: String) : Message()
 

@@ -25,6 +25,7 @@
   .row .score { font-weight:800; }
   .row.buzz { outline:.5vh solid var(--accent); }
   .row.owner .name::after { content:" · zeigt Bild"; color:var(--accent); font-size:2.2vh; }
+  .row.passed .name::after { content:" · passt"; color:var(--muted); font-size:2.2vh; }
   #overlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(20,17,43,.82); font-size:6vh; text-align:center; gap:2vh; }
   #overlay.show { display:flex; }
   #overlay .big { font-size:22vh; font-weight:900; color:var(--accent); }
@@ -91,7 +92,7 @@ function onState(s) {
   // Rangliste
   const ranking = [...s.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   $('ranking').innerHTML = ranking.map((p, i) =>
-    `<div class="row ${p.id === s.buzzPlayerId ? 'buzz' : ''} ${p.id === s.ownerId ? 'owner' : ''}">
+    `<div class="row ${p.id === s.buzzPlayerId ? 'buzz' : ''} ${p.id === s.ownerId ? 'owner' : ''} ${(s.passedIds || []).includes(p.id) ? 'passed' : ''}">
        <span class="rank">${i + 1}.</span><span class="name">${esc(p.name)}</span><span class="score">${p.score}</span></div>`).join('');
   $('round').textContent = s.roundCount ? `Person ${s.roundIndex + 1} / ${s.roundCount}` : '';
   // Ereignisse
@@ -101,7 +102,8 @@ function onState(s) {
     const text = { CORRECT: `<span class="good">${who} hat es! +${e.points}</span>`,
                    WRONG: `<span class="bad">${who}: „${esc(e.answer || '')}" ist falsch (${e.points})</span>`,
                    TIMEOUT: `<span class="bad">${who}: Zeit abgelaufen (${e.points})</span>`,
-                   UNSOLVED: 'Niemand hat es erraten' }[e.type];
+                   UNSOLVED: 'Niemand hat es erraten',
+                   ALL_PASSED: 'Alle haben gepasst' }[e.type];
     $('status').innerHTML = text;
   }
 }

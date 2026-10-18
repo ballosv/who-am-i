@@ -2,6 +2,7 @@ package de.ballosv.whoami.session
 
 import android.content.Context
 import android.os.SystemClock
+import de.ballosv.whoami.content.CelebrityHistory
 import de.ballosv.whoami.content.ImageStore
 import de.ballosv.whoami.content.WikipediaImages
 import de.ballosv.whoami.core.GameMode
@@ -69,6 +70,7 @@ class HostSession(
     val tvUrl: StateFlow<String?> = _tvUrl
     private var tvServer: TvServer? = null
 
+    private val celebrityHistory = CelebrityHistory(appContext)
     private val endpointToPlayer = HashMap<String, String>()
     private val assemblers = HashMap<String, ImageAssembler>()
     private val pendingBattleMeta = HashMap<String, Message.BattleImage>()
@@ -141,7 +143,7 @@ class HostSession(
                     engine.battleQuestions()
                 } else {
                     engine.setPreparingProgress(0f, "Promi-Bilder werden geladen…")
-                    WikipediaImages.loadQuestions(engine.snapshot.settings.personCount, images) { p ->
+                    WikipediaImages.loadQuestions(engine.snapshot.settings.personCount, images, celebrityHistory) { p ->
                         scope.launch { engine.setPreparingProgress(p * 0.7f, "Promi-Bilder werden geladen…") }
                     }
                 }
@@ -216,6 +218,8 @@ class HostSession(
         engine.buzz(myId, now, now)
     }
 
+    override fun setPassed(passed: Boolean) = engine.setPassed(myId, passed, hostNow())
+
     override fun answer(text: String) {
         engine.answer(myId, text, hostNow())
     }
@@ -253,6 +257,7 @@ class HostSession(
             is Message.Ready -> engine.setReady(playerId, message.ready)
             is Message.Buzz -> engine.buzz(playerId, message.hostTime, now)
             is Message.Answer -> engine.answer(playerId, message.text, now)
+            is Message.Pass -> engine.setPassed(playerId, message.passed, now)
             is Message.BattleClear -> engine.clearBattleImages(playerId)
             is Message.BattleImage -> pendingBattleMeta[message.imageId] = message
             is Message.ImagesReady -> imagesAtPeer[playerId] = message.imageIds.toSet()

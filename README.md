@@ -11,6 +11,8 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
   Minimum), Antwortzeit und Strafe (50 % des aktuellen Punktewerts oder fester Abzug)
 - **Buzzer:** Die Kachel-Uhr pausiert, der Spieler tippt den Namen oder sagt ihn (Spracherkennung).
   Bei falscher Antwort oder abgelaufener Zeit gibt es einen Punkteabzug, danach läuft die Runde weiter.
+- **Passen:** Wer keine Idee hat, passt (und kann das wieder zurücknehmen). Haben alle ratenden
+  Spieler gepasst, werden alle Kacheln aufgedeckt und die Person aufgelöst – ohne Punkte.
 - **Punkteanzeige:** Zeigt die aktuell möglichen Punkte, jede Verringerung ist animiert.
   Die Rangliste ist immer nach Punkten sortiert.
 - **Countdown** vor dem Start
@@ -47,7 +49,9 @@ Die TV-Webseite macht dasselbe gegen die Uhr des Host-Handys.
 
 Die Porträts kommen zur Laufzeit aus der deutschsprachigen Wikipedia (Artikelbild, freie Lizenzen).
 Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bekommen die Bilder vom Host.
-Die Personenliste steht in `app/src/main/kotlin/de/ballosv/whoami/content/Celebrities.kt`.
+Die Personenliste (rund 400 Personen) steht in `app/src/main/kotlin/de/ballosv/whoami/content/Celebrities.kt`.
+Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
+deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele Runden hinweg niemand.
 
 ## Projektaufbau
 
