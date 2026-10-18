@@ -20,6 +20,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 UA = "WhoAmI-Generator/0.2 (https://github.com/ballosv/who-am-i)"
 ENDPOINT = "https://query.wikidata.org/sparql"
@@ -28,6 +29,7 @@ TARGET = int(os.environ.get("TARGET", "4500"))
 MIN_LINKS = int(os.environ.get("MIN_LINKS", "20"))
 GERMAN_BONUS = float(os.environ.get("GERMAN_BONUS", "2.0"))
 CURRENT_YEAR = 2026
+PARALLEL = 4  # Wikidata erlaubt bis zu 5 gleichzeitige Abfragen
 
 # Beruf (Wikidata) -> Bereichskürzel der App
 OCCUPATIONS = {
@@ -80,7 +82,7 @@ SELECT ?p ?links WHERE {
 
 # Schritt 2: Details für eine Gruppe von Personen
 DETAILS = """
-SELECT ?p ?title ?label ?birth ?death ?img ?c ?family ?nsdap WHERE {
+SELECT ?p ?title ?label ?birth ?death ?img ?c ?nsdap WHERE {
   VALUES ?p { %(values)s }
   ?p wdt:P31 wd:Q5 .
   ?article schema:about ?p ; schema:isPartOf <https://de.wikipedia.org/> ; schema:name ?title .
@@ -89,7 +91,6 @@ SELECT ?p ?title ?label ?birth ?death ?img ?c ?family ?nsdap WHERE {
   OPTIONAL { ?p wdt:P569 ?birth }
   OPTIONAL { ?p wdt:P570 ?death }
   OPTIONAL { ?p wdt:P27 ?c }
-  OPTIONAL { ?p wdt:P734 ?fam . ?fam rdfs:label ?family . FILTER(LANG(?family) IN ("de", "mul", "en")) }
   OPTIONAL { ?p wdt:P102 wd:Q7320 . BIND(true AS ?nsdap) }
 }
 """
@@ -124,12 +125,17 @@ def year(value):
 
 
 PARTICLES = {"von", "van", "der", "den", "de", "da", "di", "du", "del", "la", "le", "zu", "zum", "ten", "ter"}
+PATRONYMIC = re.compile(r"^\w+(owitsch|ewitsch|jewitsch|itsch|owna|ewna|jewna|ichna)$")
 ROMAN = re.compile(r"^(?:[IVX]+\.?|Jr\.?|Sr\.?)$")
 
 
 def split_name(label, family):
     clean = re.sub(r"\s*\(.*?\)\s*", " ", label).strip()
+    clean = re.sub(r"\s+der (Ältere|Jüngere)$", "", clean)
     tokens = [t for t in clean.split() if not ROMAN.match(t)]
+    # Russische Vatersnamen („Wladimirowitsch“, „Jurjewna“) sagt im Spiel niemand mit
+    if len(tokens) >= 3:
+        tokens = [tokens[0]] + [t for t in tokens[1:-1] if not PATRONYMIC.match(t)] + [tokens[-1]]
     if not tokens:
         return "", clean
     name = " ".join(tokens)
@@ -170,19 +176,23 @@ def main():
     # Schritt 1: Kandidaten mit Bekanntheit und Bereichen sammeln
     links = {}
     areas = collections.defaultdict(set)
-    for i, (occ, code) in enumerate(OCCUPATIONS.items(), 1):
+    def candidates(occ):
         try:
-            rows = sparql(CANDIDATES % {"occ": occ, "min": MIN_LINKS})
+            return occ, sparql(CANDIDATES % {"occ": occ, "min": MIN_LINKS})
         except RuntimeError:
-            log(f"[{i}/{len(OCCUPATIONS)}] {occ}: übersprungen (Zeitüberschreitung)")
-            report.append(f"- WARNUNG: Beruf {occ} übersprungen (Zeitüberschreitung)")
-            continue
-        for r in rows:
-            qid = r["p"]["value"].rsplit("/", 1)[1]
-            links[qid] = int(r["links"]["value"])
-            areas[qid].add(code)
-        log(f"[{i}/{len(OCCUPATIONS)}] {occ} ({labels.get(occ, '?')}): {len(rows)} Kandidaten, gesamt {len(links)}")
-        time.sleep(1)
+            return occ, None
+
+    with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
+        for i, (occ, rows) in enumerate(pool.map(candidates, OCCUPATIONS), 1):
+            if rows is None:
+                log(f"[{i}/{len(OCCUPATIONS)}] {occ}: übersprungen (Zeitüberschreitung)")
+                report.append(f"- WARNUNG: Beruf {occ} übersprungen (Zeitüberschreitung)")
+                continue
+            for r in rows:
+                qid = r["p"]["value"].rsplit("/", 1)[1]
+                links[qid] = int(r["links"]["value"])
+                areas[qid].add(OCCUPATIONS[occ])
+            log(f"[{i}/{len(OCCUPATIONS)}] {occ} ({labels.get(occ, '?')}): {len(rows)} Kandidaten, gesamt {len(links)}")
 
     # Nur Kandidaten, die mit Bonus noch unter die besten TARGET kommen können
     ranked = sorted(links.values(), reverse=True)
@@ -193,13 +203,22 @@ def main():
 
     # Schritt 2: Details in Gruppen laden
     people = {}
-    batch_size = 150
-    for i in range(0, len(selected), batch_size):
-        batch = selected[i:i + batch_size]
+    batch_size = 200
+    batches = [selected[i:i + batch_size] for i in range(0, len(selected), batch_size)]
+
+    def details(batch):
         try:
-            rows = sparql(DETAILS % {"values": " ".join("wd:" + q for q in batch)})
+            return sparql(DETAILS % {"values": " ".join("wd:" + q for q in batch)})
         except RuntimeError:
-            log(f"  Gruppe {i // batch_size + 1} übersprungen")
+            return None
+
+    done = 0
+    with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
+        results = list(pool.map(details, batches))
+    for batch, rows in zip(batches, results):
+        done += len(batch)
+        if rows is None:
+            log("  Gruppe übersprungen")
             continue
         for r in rows:
             qid = r["p"]["value"].rsplit("/", 1)[1]
@@ -221,11 +240,7 @@ def main():
                 p["birth"] = b
             if d is not None:
                 p["death"] = d
-            fam = r.get("family", {}).get("value")
-            if fam and (p["family"] is None or len(fam) > len(p["family"])):
-                p["family"] = fam
-        log(f"  Details {min(i + batch_size, len(selected))}/{len(selected)}")
-        time.sleep(0.5)
+        log(f"  Details {done}/{len(selected)}")
 
     rows = []
     for p in people.values():
