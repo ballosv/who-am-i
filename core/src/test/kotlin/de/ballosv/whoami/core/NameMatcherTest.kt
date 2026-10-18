@@ -24,6 +24,13 @@ class NameMatcherTest {
         assertFalse(full("Merkel", "Angela", "Merkel"))
     }
 
+    @Test fun firstOfSeveralGivenNamesIsEnough() {
+        assertTrue(full("Anna Netrebko", "Anna Jurjewna", "Netrebko"))
+        assertTrue(full("Johann Wolfgang Goethe", "Johann Wolfgang", "Goethe"))
+        assertTrue(full("Johann Goethe", "Johann Wolfgang", "Goethe"))
+        assertFalse(full("Wolfgang Goethe", "Johann Wolfgang", "Goethe"))
+    }
+
     @Test fun umlautsAndAccents() {
         assertTrue(last("Mueller", "Thomas", "Müller"))
         assertTrue(last("Muller", "Thomas", "Müller"))

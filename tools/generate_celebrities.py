@@ -53,7 +53,21 @@ OCCUPATIONS = {
 }
 
 # Deutschland (inkl. historischer Staaten), Österreich, Schweiz
-GERMAN_STATES = {"Q183", "Q713750", "Q16957", "Q7318", "Q43287", "Q41304", "Q27306", "Q40", "Q39", "Q12548", "Q131964"}
+GERMAN_STATES = {"Q183", "Q713750", "Q16957", "Q7318", "Q43287", "Q41304", "Q27306", "Q40", "Q39"}
+
+# NSDAP – deren Politiker/Funktionäre gehören nicht in ein Partyspiel
+NSDAP = "Q7320"
+
+
+def era_factor(birth):
+    """Gesichter heutiger Promis kennt man eher als die historischer Persönlichkeiten."""
+    if birth is None:
+        return 0.5
+    if birth >= 1940:
+        return 1.0
+    if birth >= 1900:
+        return 0.6
+    return 0.25
 
 # Schritt 1: pro Beruf nur Person + Bekanntheit (schnell)
 CANDIDATES = """
@@ -66,7 +80,7 @@ SELECT ?p ?links WHERE {
 
 # Schritt 2: Details für eine Gruppe von Personen
 DETAILS = """
-SELECT ?p ?title ?label ?birth ?death ?img ?c ?family WHERE {
+SELECT ?p ?title ?label ?birth ?death ?img ?c ?family ?nsdap WHERE {
   VALUES ?p { %(values)s }
   ?p wdt:P31 wd:Q5 .
   ?article schema:about ?p ; schema:isPartOf <https://de.wikipedia.org/> ; schema:name ?title .
@@ -76,6 +90,7 @@ SELECT ?p ?title ?label ?birth ?death ?img ?c ?family WHERE {
   OPTIONAL { ?p wdt:P570 ?death }
   OPTIONAL { ?p wdt:P27 ?c }
   OPTIONAL { ?p wdt:P734 ?fam . ?fam rdfs:label ?family . FILTER(LANG(?family) IN ("de", "mul", "en")) }
+  OPTIONAL { ?p wdt:P102 wd:Q7320 . BIND(true AS ?nsdap) }
 }
 """
 
@@ -120,7 +135,7 @@ def split_name(label, family):
     name = " ".join(tokens)
     if family and family in name and family != name:
         idx = name.rfind(family)
-        first, last = name[:idx].strip(), name[idx:].strip()
+        first, last = name[:idx].strip(), family
     elif len(tokens) == 1:
         return "", tokens[0]
     else:
@@ -171,7 +186,8 @@ def main():
 
     # Nur Kandidaten, die mit Bonus noch unter die besten TARGET kommen können
     ranked = sorted(links.values(), reverse=True)
-    cutoff = ranked[min(len(ranked), TARGET) - 1] / GERMAN_BONUS if ranked else 0
+    # Obergrenze des Bonus: deutschsprachig × heutige Person (Faktor 1) – alle darunter fallen sicher raus
+    cutoff = ranked[min(len(ranked), TARGET * 2) - 1] / GERMAN_BONUS if ranked else 0
     selected = [q for q, n in links.items() if n >= cutoff]
     log(f"Details für {len(selected)} von {len(links)} Kandidaten (Sitelinks >= {cutoff:.0f})")
 
@@ -190,7 +206,10 @@ def main():
             p = people.setdefault(qid, {
                 "qid": qid, "title": r["title"]["value"], "label": None, "links": links[qid],
                 "areas": areas[qid], "cits": set(), "birth": None, "death": None, "family": None, "img": False,
+                "nsdap": False,
             })
+            if "nsdap" in r:
+                p["nsdap"] = True
             if "label" in r:
                 p["label"] = r["label"]["value"]
             if "img" in r:
@@ -213,6 +232,8 @@ def main():
         decs = decades(p["birth"], p["death"])
         if not decs or not p["img"] or not p["label"]:
             continue
+        if p["nsdap"] and "P" in p["areas"]:
+            continue
         if p["family"] and p["family"] not in p["label"]:
             p["family"] = None
         german = bool(p["cits"] & GERMAN_STATES)
@@ -222,7 +243,7 @@ def main():
         first, last = split_name(p["label"], p["family"])
         if not last:
             continue
-        score = p["links"] * (GERMAN_BONUS if german else 1.0)
+        score = p["links"] * (GERMAN_BONUS if german else 1.0) * era_factor(p["birth"])
         rows.append({
             "qid": p["qid"], "title": p["title"], "first": first, "last": last,
             "areas": " ".join(sorted(areas)), "decades": " ".join(decs),

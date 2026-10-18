@@ -20,9 +20,12 @@ object NameMatcher {
         val lastOk = containsFuzzy(tokens, last) || lastWithoutParticles(lastName)?.let { containsFuzzy(tokens, it) } == true
         return when (accuracy) {
             AnswerAccuracy.LAST_NAME -> lastOk
-            AnswerAccuracy.FULL_NAME -> lastOk && (first.isEmpty() || containsFuzzy(tokens, first))
+            // Bei mehreren Vornamen („Anna Jurjewna“, „Johann Wolfgang“) genügt der erste.
+            AnswerAccuracy.FULL_NAME -> lastOk && (first.isEmpty() || containsFuzzy(tokens, first) || firstToken(firstName)?.let { containsFuzzy(tokens, it) } == true)
         }
     }
+
+    private fun firstToken(firstName: String): String? = normalize(firstName).split(' ').firstOrNull { it.isNotEmpty() }
 
     private val PARTICLES = setOf("von", "van", "der", "den", "de", "da", "di", "du", "del", "la", "le", "zu", "zum", "ten", "ter", "al", "el")
 
