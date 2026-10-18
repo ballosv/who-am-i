@@ -6,7 +6,7 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
 ## Funktionen
 
 - **Einzelspieler und Mehrspieler**, Auswahl auf dem Startbildschirm
-- **Einstellbar:** Anzahl Kacheln, Personen pro Runde, Zeit zwischen dem Aufdecken (ms),
+- **Einstellbar:** Anzahl Kacheln, Abstand zwischen den Kacheln (mit Live-Vorschau), Personen pro Runde, Zeit zwischen dem Aufdecken (ms),
   Genauigkeit (nur Nachname / Vor- und Nachname), Punkte-Abstufung (Startwert, Abzug pro Kachel,
   Minimum), Antwortzeit und Strafe (50 % des aktuellen Punktewerts oder fester Abzug)
 - **Buzzer:** Die Kachel-Uhr pausiert, der Spieler tippt den Namen oder sagt ihn (Spracherkennung).

@@ -139,7 +139,8 @@ fun TileBoard(snapshot: GameSnapshot, clock: State<Long>, image: ImageBitmap?, m
                 if (tile in 0 until total) alpha[tile] = if (i == revealed - 1) 1f - fade else 0f
             }
             val cell = size.width / g
-            val gap = 1.5.dp.toPx()
+            // Halber Abstand pro Seite ergibt zwischen zwei Kacheln den eingestellten Abstand.
+            val gap = s.settings.tileGapDp.dp.toPx() / 2
             for (tile in 0 until total) {
                 val a = alpha[tile]
                 if (a <= 0f) continue

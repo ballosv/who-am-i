@@ -1,6 +1,17 @@
 package de.ballosv.whoami.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import de.ballosv.whoami.ui.theme.TileA
+import de.ballosv.whoami.ui.theme.TileB
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -88,6 +99,12 @@ fun SettingsEditor(settings: GameSettings, multiplayer: Boolean, onChange: (Game
             steps = GameSettings.MAX_GRID - GameSettings.MIN_GRID - 1,
         ) { onChange(s.copy(gridSize = it.roundToInt())) }
         LabeledSlider(
+            "Abstand zwischen den Kacheln", "${s.tileGapDp} dp",
+            s.tileGapDp.toFloat(), 0f..GameSettings.MAX_TILE_GAP_DP.toFloat(),
+            steps = GameSettings.MAX_TILE_GAP_DP - 1,
+        ) { onChange(s.copy(tileGapDp = it.roundToInt())) }
+        TileGapPreview(s.gridSize, s.tileGapDp, Modifier.align(Alignment.CenterHorizontally))
+        LabeledSlider(
             if (s.mode == GameMode.BATTLE) "Bilder pro Spieler" else "Personen pro Spielrunde", "${s.personCount}",
             s.personCount.toFloat(), 1f..30f, steps = 28,
         ) { onChange(s.copy(personCount = it.roundToInt())) }
@@ -164,6 +181,31 @@ fun <T> Choice(options: List<Pair<String, T>>, selected: T, onSelect: (T) -> Uni
                 onClick = { onSelect(value) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) { Text(label, maxLines = 1) }
+        }
+    }
+}
+
+/** Vorschau des Kachelrasters mit dem eingestellten Abstand – so groß wie auf dem Spielbildschirm skaliert. */
+@Composable
+private fun TileGapPreview(gridSize: Int, gapDp: Int, modifier: Modifier = Modifier) {
+    val brush = remember { Brush.linearGradient(listOf(TileA, TileB)) }
+    Canvas(
+        modifier
+            .size(180.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF8D7B6A), Color(0xFF3B3A4A)))),
+    ) {
+        val cell = size.width / gridSize
+        val gap = gapDp.dp.toPx() / 2
+        for (tile in 0 until gridSize * gridSize) {
+            val x = (tile % gridSize) * cell
+            val y = (tile / gridSize) * cell
+            drawRoundRect(
+                brush = brush,
+                topLeft = Offset(x + gap, y + gap),
+                size = Size((cell - 2 * gap).coerceAtLeast(0f), (cell - 2 * gap).coerceAtLeast(0f)),
+                cornerRadius = CornerRadius(4.dp.toPx()),
+            )
         }
     }
 }

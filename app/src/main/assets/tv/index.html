@@ -13,7 +13,7 @@
   #frame { position:relative; height:74vh; aspect-ratio:1; border-radius:2vh; overflow:hidden; background:#000; box-shadow:0 2vh 6vh rgba(0,0,0,.5); }
   #frame img { width:100%; height:100%; object-fit:cover; display:block; }
   #tiles { position:absolute; inset:0; display:grid; }
-  .tile { background:linear-gradient(135deg,var(--tile),var(--tile2)); margin:1px; border-radius:.6vh; transition:none; }
+  .tile { background:linear-gradient(135deg,var(--tile),var(--tile2)); border-radius:.6vh; transition:none; }
   #top { display:flex; gap:4vw; align-items:baseline; font-size:3vh; color:var(--muted); }
   #points { font-size:9vh; font-weight:800; color:var(--accent); min-width:20vh; text-align:center; display:inline-block; }
   #points.drop { animation:drop .45s ease-out; }
@@ -85,6 +85,9 @@ function onState(s) {
     tiles.innerHTML = '';
     for (let i = 0; i < g * g; i++) { const d = document.createElement('div'); d.className = 'tile'; tiles.appendChild(d); }
   }
+  // Abstand wie auf dem Handy: dp relativ zu einem ~360 dp breiten Bild, auf die TV-Bildgröße skaliert.
+  const half = (s.settings.tileGapDp ?? 3) / 2 * $('frame').clientHeight / 360 + 'px';
+  for (const k of tiles.children) k.style.margin = half;
   // Rangliste
   const ranking = [...s.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   $('ranking').innerHTML = ranking.map((p, i) =>

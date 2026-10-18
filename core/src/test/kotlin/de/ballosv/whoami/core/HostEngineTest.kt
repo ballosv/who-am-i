@@ -139,6 +139,14 @@ class HostEngineTest {
         assertEquals(1000.0, c.offsetMs.toDouble(), 2.0)
     }
 
+    @Test fun tileGapIsClampedAndTransmitted() {
+        assertEquals(0, GameSettings(tileGapDp = -5).normalized().tileGapDp)
+        assertEquals(GameSettings.MAX_TILE_GAP_DP, GameSettings(tileGapDp = 99).normalized().tileGapDp)
+        val e = HostEngine(settings.copy(tileGapDp = 8), PlayerInfo("h", "H"))
+        val decoded = Message.decode(Message.encode(Message.State(e.snapshot))) as Message.State
+        assertEquals(8, decoded.snapshot.settings.tileGapDp)
+    }
+
     @Test fun protocolRoundTrip() {
         val msg = Message.State(engine().snapshot)
         assertEquals(msg, Message.decode(Message.encode(msg)))
