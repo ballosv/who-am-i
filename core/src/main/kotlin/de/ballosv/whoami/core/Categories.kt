@@ -35,12 +35,12 @@ enum class Origin(val label: String) {
     INTERNATIONAL("International"),
 }
 
-/** Wie bekannt die Personen mindestens sein sollen (Stufe 1 = sehr bekannt). */
+/** Wie bekannt die Personen mindestens sein sollen (Stufe 1 = extrem bekannt). */
 @Serializable
 enum class FameLevel(val label: String, val maxTier: Int) {
-    VERY_FAMOUS("Sehr bekannt", 1),
-    FAMOUS("Bekannt", 2),
-    ALL("Alle", 3),
+    EXTREMELY_FAMOUS("Extrem bekannt", 1),
+    VERY_FAMOUS("Sehr bekannt", 2),
+    FAMOUS("Bekannt", 3),
 }
 
 /** Prominente Person; [wikiTitle] ist der Artikel in der deutschsprachigen Wikipedia. */
@@ -55,7 +55,7 @@ data class Celebrity(
     val qid: String? = null,
     /** Bekanntheit (Anzahl Wikipedia-Sprachversionen); bekanntere Personen kommen häufiger dran. */
     val popularity: Int = 0,
-    /** Bekanntheitsstufe 1–3, siehe [FameLevel]. */
+    /** Bekanntheitsstufe 1–3, siehe [FameLevel]; Stufe 4 = zu unbekannt, nie im Spiel. */
     val tier: Int = 1,
 ) {
     val displayName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
@@ -70,7 +70,7 @@ data class CelebrityFilter(
     val areas: Set<Area> = emptySet(),
     val decades: Set<Decade> = emptySet(),
     val origins: Set<Origin> = emptySet(),
-    val fame: FameLevel = FameLevel.ALL,
+    val fame: FameLevel = FameLevel.FAMOUS,
 ) {
     /** Keine Kategorie gewählt (die Bekanntheitsstufe zählt hier nicht mit). */
     val isAll: Boolean get() = areas.isEmpty() && decades.isEmpty() && origins.isEmpty()
@@ -81,8 +81,7 @@ data class CelebrityFilter(
             (decades.isEmpty() || c.decades.any { it in decades }) &&
             (origins.isEmpty() || c.origin in origins)
 
-    fun apply(all: List<Celebrity>): List<Celebrity> =
-        if (isAll && fame == FameLevel.ALL) all else all.filter(::matches)
+    fun apply(all: List<Celebrity>): List<Celebrity> = all.filter(::matches)
 
     /** Kurzbeschreibung für Anzeigen, z. B. „Musik · 80er, 90er“. */
     fun describe(): String {
@@ -93,7 +92,7 @@ data class CelebrityFilter(
                 .filter { it.isNotEmpty() }
                 .joinToString(" · ") { group -> group.sortedBy { (it as Enum<*>).ordinal }.joinToString(", ") { label(it) } }
         }
-        return if (fame == FameLevel.ALL) categories else "$categories · ${fame.label}"
+        return "$categories · ${fame.label}"
     }
 
     private fun label(value: Any): String = when (value) {

@@ -66,6 +66,8 @@ sealed class Message {
         val json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = true
+            // Unbekannte Werte (z. B. gespeicherte Einstellungen älterer Versionen) fallen auf den Standard zurück.
+            coerceInputValues = true
             classDiscriminator = "t"
         }
 

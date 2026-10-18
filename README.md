@@ -11,7 +11,7 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
   Minimum), Antwortzeit und Strafe (50 % des aktuellen Punktewerts oder fester Abzug)
 - **Buzzer:** Die Kachel-Uhr pausiert, der Spieler tippt den Namen oder sagt ihn (Spracherkennung).
   Bei falscher Antwort oder abgelaufener Zeit gibt es einen Punkteabzug, danach läuft die Runde weiter.
-- **Kategorien:** Bekanntheit (Sehr bekannt / Bekannt / Alle), Bereich (Film & Schauspiel, Musik, TV & Comedy, Sport, Politik & Gesellschaft,
+- **Kategorien:** Bekanntheit (Bekannt / Sehr bekannt / Extrem bekannt), Bereich (Film & Schauspiel, Musik, TV & Comedy, Sport, Politik & Gesellschaft,
   Wissenschaft & Wirtschaft, Kunst & Literatur, Mode & Models, Geschichte), Jahrzehnt (50er & früher
   bis 2020er) und Herkunft (Deutsche Promis / International). Innerhalb einer Gruppe gilt „oder“,
   zwischen den Gruppen „und“ (Musik + 80er = Musiker der 80er). Ohne Auswahl sind alle Personen dabei.
@@ -52,7 +52,7 @@ Die TV-Webseite macht dasselbe gegen die Uhr des Host-Handys.
 ## Promi-Bilder
 
 Die Porträts kommen zur Laufzeit von **Wikimedia Commons** (freie Lizenzen): Über die Wikidata-ID einer
-Person werden Fotos gesucht, die sie laut Commons zeigen. Eine Gesichtserkennung auf dem Gerät (ML Kit)
+Person werden Fotos gesucht, die sie laut Commons zeigen. Eine Gesichtserkennung auf dem Gerät (ML Kit; das Modell lädt die App beim ersten Start über die Google-Play-Dienste nach, die APK muss dafür nicht im Play Store sein)
 nimmt nur Einzelporträts und schneidet sie auf das Gesicht zu. Pro Person merkt sich die App, welche Fotos
 schon gezeigt wurden, damit möglichst jedes Mal ein anderes kommt. Notfalls wird das Artikelbild der
 deutschsprachigen Wikipedia verwendet. Urheber und Lizenz stehen bei der Auflösung unter dem Namen.
@@ -62,7 +62,7 @@ plus mehrere Tausend aus Wikidata erzeugte (`core/src/main/resources/de/ballosv/
 Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenliste erzeugen*: Bereich aus dem Beruf,
 Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten, Bekanntheit aus der Anzahl
 der Wikipedia-Sprachversionen (deutschsprachige Personen mit Bonus). Daraus ergeben sich drei Bekanntheitsstufen,
-einstellbar als *Sehr bekannt*, *Bekannt* (Standard) und *Alle*. Bekanntere Personen kommen häufiger dran.
+einstellbar als *Extrem bekannt* (ca. 360 Personen), *Sehr bekannt* (ca. 1.040, Standard) und *Bekannt* (ca. 1.975); die unbekanntesten Personen der Wikidata-Liste sind nie im Spiel. Bekanntere Personen kommen häufiger dran.
 Heutige Promis werden bevorzugt (Geburtsjahr ab 1940), NS-Funktionäre ausgeschlossen. Den Workflow bei Bedarf
 erneut starten (*Actions → Personenliste erzeugen → Run workflow*), um die Liste zu aktualisieren.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,

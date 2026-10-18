@@ -8,7 +8,8 @@ composeBom = "2024.12.01"
 serialization = "1.7.3"
 coroutines = "1.9.0"
 nearby = "19.3.0"
-mlkitFace = "16.1.7"
+mlkitFace = "17.1.0"
+playServicesBase = "18.5.0"
 junit = "4.13.2"
 
 [libraries]
@@ -27,7 +28,8 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 play-services-nearby = { group = "com.google.android.gms", name = "play-services-nearby", version.ref = "nearby" }
-mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFace" }
+mlkit-face-detection = { group = "com.google.android.gms", name = "play-services-mlkit-face-detection", version.ref = "mlkitFace" }
+play-services-base = { group = "com.google.android.gms", name = "play-services-base", version.ref = "playServicesBase" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
