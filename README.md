@@ -81,7 +81,10 @@ Voraussetzungen: JDK 17 und das Android SDK (API 35).
 ```
 
 GitHub Actions baut bei jedem Push und Pull Request; das Debug-APK hängt als Artefakt am Workflow-Lauf.
-Ein Tag `v*` auf `main` erzeugt ein GitHub-Release mit APK.
+
+**Releases** entstehen automatisch: Jeder Merge nach `main` erzeugt ein GitHub-Release `v<versionName>`
+(aus `app/build.gradle.kts`) mit der APK zum direkten Download unter *Releases*. Für ein neues Release
+vorher `versionName` und `versionCode` erhöhen – ein bestehendes Release wird nicht überschrieben.
 
 ## Branches
 
