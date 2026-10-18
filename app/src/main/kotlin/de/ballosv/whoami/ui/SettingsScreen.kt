@@ -58,6 +58,7 @@ import de.ballosv.whoami.AppViewModel
 import de.ballosv.whoami.core.AnswerAccuracy
 import de.ballosv.whoami.core.GameMode
 import de.ballosv.whoami.core.GameSettings
+import de.ballosv.whoami.core.NameReveal
 import de.ballosv.whoami.core.Scoring
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -134,6 +135,16 @@ fun SettingsEditor(settings: GameSettings, multiplayer: Boolean, onChange: (Game
             "Zeit für die Eingabe", "${s.answerTimeSeconds} s",
             s.answerTimeSeconds.toFloat(), 3f..30f, steps = 26,
         ) { onChange(s.copy(answerTimeSeconds = it.roundToInt())) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Name schrittweise aufdecken", Modifier.weight(1f))
+            Switch(checked = s.revealName, onCheckedChange = { onChange(s.copy(revealName = it)) })
+        }
+        Text(
+            "Hat nach der letzten Kachel noch niemand gebuzzert, erscheint der Name Buchstabe für Buchstabe " +
+                "(Vorname zuerst, im Takt der Kacheln). Gebuzzert werden kann, bis der Name vollständig ist.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
     SectionCard("Genauigkeit der Lösung") {
         Choice(
@@ -158,6 +169,14 @@ fun SettingsEditor(settings: GameSettings, multiplayer: Boolean, onChange: (Game
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (s.revealName) {
+            Text(
+                "Name aufdecken: ${NameReveal.points(s, 1)} ab halbem Vornamen → ${NameReveal.points(s, 2)} ab ganzem Vornamen → " +
+                    "${NameReveal.points(s, 3)} ab halbem Nachnamen → 0 (ganzer Name)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
     SectionCard("Falsche Antwort / Zeit überschritten") {
         Row(verticalAlignment = Alignment.CenterVertically) {

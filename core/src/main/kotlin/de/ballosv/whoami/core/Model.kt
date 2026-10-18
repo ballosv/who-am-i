@@ -90,6 +90,10 @@ data class GameSnapshot(
     val tvMode: Boolean = false,
     val preparingProgress: Float = 0f,
     val message: String? = null,
+    /** „Name schrittweise aufdecken“: Buchstaben im Namen (0 = aus), Punkteschwellen und bisher sichtbarer Teil. */
+    val nameLetters: Int = 0,
+    val nameThresholds: List<Int> = emptyList(),
+    val nameHint: String? = null,
 ) {
     fun revealedAt(hostTime: Long): Int {
         if (phase != Phase.REVEALING && phase != Phase.ANSWERING) {
@@ -108,7 +112,27 @@ data class GameSnapshot(
         return (sinceLast.toFloat() / fadeMs).coerceIn(0f, 1f)
     }
 
-    fun pointsAt(hostTime: Long): Int = Scoring.pointsFor(settings, revealedAt(hostTime))
+    /** Wie viele Buchstaben des Namens zum Zeitpunkt [hostTime] sichtbar sind (nach der letzten Kachel). */
+    fun nameLettersAt(hostTime: Long): Int {
+        if (nameLetters == 0 || (phase != Phase.REVEALING && phase != Phase.ANSWERING)) return 0
+        val elapsed = (pausedAt ?: hostTime) - revealAnchor - settings.tileCount * settings.revealIntervalMs
+        if (elapsed < 0) return 0
+        return (elapsed / settings.revealIntervalMs).toInt().coerceAtMost(nameLetters)
+    }
+
+    /** Host-Zeit, zu der die Runde ohne Lösung endet (Kachel-Uhr, ohne Pausen). */
+    val revealEndOffset: Long
+        get() = if (nameLetters > 0) {
+            (settings.tileCount + nameLetters) * settings.revealIntervalMs
+        } else {
+            settings.tileCount * settings.revealIntervalMs + HostEngine.UNSOLVED_GRACE_MS
+        }
+
+    fun pointsAt(hostTime: Long): Int {
+        val letters = nameLettersAt(hostTime)
+        if (letters == 0) return Scoring.pointsFor(settings, revealedAt(hostTime))
+        return NameReveal.points(settings, nameThresholds.count { letters >= it })
+    }
 
     fun player(id: String?): PlayerInfo? = players.firstOrNull { it.id == id }
 

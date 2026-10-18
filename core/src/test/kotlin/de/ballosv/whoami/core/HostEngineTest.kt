@@ -41,6 +41,77 @@ class HostEngineTest {
         assertEquals(100, e.snapshot.pointsAt(100_000))
     }
 
+    private fun nameEngine(): HostEngine {
+        val e = HostEngine(settings.copy(revealName = true), PlayerInfo("host", "Host"), Random(1))
+        e.addOrUpdatePlayer("p2", "Zweiter")
+        e.startCountdown(questions, now = 0, countdownMs = 1000)
+        e.tick(1000)
+        return e
+    }
+
+    @Test fun nameIsRevealedLetterByLetterAfterAllTiles() {
+        val e = nameEngine()
+        // 9 Kacheln à 1 s ab 1000 -> ab 10 000 kommen die Buchstaben, je 1 s
+        e.tick(10_500)
+        assertNull(e.snapshot.nameHint)
+        assertEquals(100, e.snapshot.pointsAt(10_500))
+        e.tick(11_000)
+        assertEquals("A_____ ______", e.snapshot.nameHint)
+        e.tick(17_000)
+        assertEquals("Angela M_____", e.snapshot.nameHint)
+        assertEquals(Phase.REVEALING, e.snapshot.phase)
+        // Ganzer Name (12 Buchstaben) bei 22 000: Runde ohne Punkte vorbei
+        e.tick(21_999)
+        assertEquals(Phase.REVEALING, e.snapshot.phase)
+        e.tick(22_000)
+        assertEquals(Phase.ROUND_RESULT, e.snapshot.phase)
+        assertEquals(EventType.UNSOLVED, e.snapshot.lastEvent!!.type)
+        assertNull(e.snapshot.nameHint)
+        assertEquals("Angela Merkel", e.snapshot.solution)
+    }
+
+    @Test fun namePointsDropInStages() {
+        val s = nameEngine().snapshot
+        // Punkte bei allen Kacheln: 100; Stufen nach halbem Vornamen (3), Vornamen (6), halbem Nachnamen (9)
+        assertEquals(listOf(3, 6, 9), s.nameThresholds)
+        assertEquals(100, s.pointsAt(12_000)) // 2 Buchstaben
+        assertEquals(75, s.pointsAt(13_000)) // „Ang“
+        assertEquals(75, s.pointsAt(15_000))
+        assertEquals(50, s.pointsAt(16_000)) // „Angela“
+        assertEquals(25, s.pointsAt(19_000)) // „Angela Mer“
+        assertEquals(25, s.pointsAt(21_500))
+    }
+
+    @Test fun buzzDuringNameRevealUsesStagePoints() {
+        val e = nameEngine()
+        e.tick(16_000)
+        assertTrue(e.buzz("p2", pressedAt = 16_200, now = 16_200))
+        assertEquals(50, e.snapshot.buzzPoints)
+        // Während der Antwort steht der Name still
+        assertEquals(6, e.snapshot.nameLettersAt(30_000))
+        assertTrue(e.answer("p2", "Merkel", now = 17_000))
+        assertEquals(50, e.snapshot.player("p2")!!.score)
+    }
+
+    @Test fun noBuzzOnceNameIsComplete() {
+        val e = nameEngine()
+        assertFalse(e.buzz("p2", pressedAt = 22_000, now = 22_000))
+    }
+
+    @Test fun nameRevealHelpers() {
+        assertEquals("J. K. R______", NameReveal.hint("J. K. Rowling", 3))
+        assertEquals(listOf(2, 4, 6), NameReveal.thresholds("", "Madonna"))
+        assertEquals(listOf(1, 2, 6), NameReveal.thresholds("Ed", "Sheeran"))
+    }
+
+    @Test fun withoutOptionNoNameReveal() {
+        val e = engine()
+        assertEquals(0, e.snapshot.nameLetters)
+        e.tick(15_000)
+        assertNull(e.snapshot.nameHint)
+        assertEquals(100, e.snapshot.pointsAt(15_000))
+    }
+
     @Test fun correctAnswerAwardsPointsAtBuzzTime() {
         val e = engine()
         assertTrue(e.buzz("p2", pressedAt = 3_200, now = 3_250))
