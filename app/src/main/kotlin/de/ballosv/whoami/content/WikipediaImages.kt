@@ -1,5 +1,6 @@
 package de.ballosv.whoami.content
 
+import de.ballosv.whoami.core.Celebrity
 import de.ballosv.whoami.core.Freshness
 import de.ballosv.whoami.core.Question
 import kotlinx.coroutines.Dispatchers
@@ -21,18 +22,20 @@ object WikipediaImages {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * Wählt [count] Personen mit Bild aus, legt die Bilder in [store] ab und liefert die
+     * Wählt [count] Personen mit Bild aus [pool] aus (bereits nach Kategorien gefiltert), legt die Bilder in [store] ab und liefert die
      * passenden Fragen. Personen, die noch nie oder am längsten nicht dran waren, haben
      * Vorrang (siehe [CelebrityHistory]). [progress] erhält Werte von 0 bis 1.
      */
     suspend fun loadQuestions(
+        pool: List<Celebrity>,
         count: Int,
         store: ImageStore,
         history: CelebrityHistory,
         progress: (Float) -> Unit,
     ): List<Question> =
         withContext(Dispatchers.IO) {
-            val candidates = Freshness.order(CELEBRITIES, history.recent()) { it.wikiTitle }.toMutableList()
+            if (pool.isEmpty()) throw IOException("Zu den gewählten Kategorien gibt es keine Personen.")
+            val candidates = Freshness.order(pool, history.recent()) { it.wikiTitle }.toMutableList()
             val used = mutableListOf<String>()
             // Ohne Bild übersprungene Personen ebenfalls merken, damit sie nicht jedes Mal zuerst probiert werden.
             val skipped = mutableListOf<String>()

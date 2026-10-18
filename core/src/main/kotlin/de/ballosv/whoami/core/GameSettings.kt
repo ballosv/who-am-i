@@ -41,8 +41,14 @@ data class GameSettings(
     /** true: falsche Antwort kostet 50 % des aktuell möglichen Punktewerts, sonst [fixedPenalty]. */
     val halfPointsPenalty: Boolean = true,
     val fixedPenalty: Int = 100,
+    /** Kategorien für Promi-Bilder; leer bedeutet jeweils „alle“. */
+    val areas: Set<Area> = emptySet(),
+    val decades: Set<Decade> = emptySet(),
+    val origins: Set<Origin> = emptySet(),
 ) {
     val tileCount: Int get() = gridSize * gridSize
+
+    val celebrityFilter: CelebrityFilter get() = CelebrityFilter(areas, decades, origins)
 
     fun normalized(): GameSettings = copy(
         gridSize = gridSize.coerceIn(MIN_GRID, MAX_GRID),
