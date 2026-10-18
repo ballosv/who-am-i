@@ -63,6 +63,8 @@ Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenli
 Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten, Bekanntheit aus der Anzahl
 der Wikipedia-Sprachversionen (deutschsprachige Personen mit Bonus). Daraus ergeben sich drei Bekanntheitsstufen,
 einstellbar als *Sehr bekannt*, *Bekannt* (Standard) und *Alle*. Bekanntere Personen kommen häufiger dran.
+Heutige Promis werden bevorzugt (Geburtsjahr ab 1940), NS-Funktionäre ausgeschlossen. Den Workflow bei Bedarf
+erneut starten (*Actions → Personenliste erzeugen → Run workflow*), um die Liste zu aktualisieren.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
 deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele Runden hinweg niemand.
 
