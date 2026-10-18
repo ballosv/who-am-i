@@ -3,9 +3,9 @@
 Erzeugt aus Wikidata eine Liste bekannter Personen samt Kategorien für die App
 (core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv).
 
-Bekanntheit = wie oft der Artikel in der deutschen Wikipedia aufgerufen wird (Median der
-Tagesaufrufe der letzten 60 Tage × 30 – robust gegen kurze Ausschläge durch Skandale oder
-Todesfälle). Die Zahl der Sprachversionen gibt nur einen kleinen Bonus, historische
+Bekanntheit = wie oft der Artikel in der deutschen Wikipedia aufgerufen wird: Vorauswahl über
+den Median der Tagesaufrufe der letzten 60 Tage (gebündelt, schnell), danach für die besten
+Kandidaten der Median der Monatsaufrufe der letzten 12 Monate – robust gegen Nachrichtenwellen. Die Zahl der Sprachversionen gibt nur einen kleinen Bonus, historische
 Personen werden leicht abgewertet (deren Gesichter kennt man seltener).
 
 Kandidaten: Personen mit passendem Beruf und mindestens MIN_LINKS Sprachversionen, plus alle
@@ -43,6 +43,8 @@ MIN_LINKS = int(os.environ.get("MIN_LINKS", "20"))
 MAX_CANDIDATES = int(os.environ.get("MAX_CANDIDATES", "30000"))
 SPARQL_PARALLEL = 4  # Wikidata erlaubt bis zu 5 gleichzeitige Abfragen
 VIEWS_PARALLEL = 3
+MONTHLY_PARALLEL = 2
+REFINE = int(os.environ.get("REFINE", "9000"))  # so viele Kandidaten bekommen den 12-Monats-Wert
 CURRENT_YEAR = datetime.date.today().year
 
 # Beruf (Wikidata) -> Bereichskürzel der App
@@ -119,7 +121,9 @@ def http_json(url, data=None, accept="application/json", retries=5):
             if e.code == 404:
                 return None
             log(f"  HTTP {e.code} ({attempt + 1}/{retries}): {url[:120]}")
-            time.sleep(5 * (attempt + 1) if e.code == 429 else 2 * (attempt + 1))
+            retry_after = e.headers.get("Retry-After") if e.headers else None
+            wait = int(retry_after) if retry_after and retry_after.isdigit() else 5 * (attempt + 1)
+            time.sleep(wait if e.code == 429 else 2 * (attempt + 1))
         except Exception as e:  # noqa: BLE001
             log(f"  Fehler ({attempt + 1}/{retries}): {e}")
             time.sleep(3 * (attempt + 1))
@@ -200,6 +204,18 @@ def monthly_views(titles):
     return {t: int(statistics.median(v) * 30) if v else 0 for t, v in daily.items()}
 
 
+def median_monthly_views(title, months):
+    """Median der Monatsaufrufe der letzten 12 Monate (REST-API, einzeln – daher nur für die Vorauswahl)."""
+    (y0, m0), (y1, m1) = months[0], months[-1]
+    article = urllib.parse.quote(title.replace(" ", "_"), safe="")
+    url = f"{PAGEVIEWS}/per-article/de.wikipedia/all-access/user/{article}/monthly/{y0}{m0:02d}0100/{y1}{m1:02d}0100"
+    data = http_json(url)
+    views = [it["views"] for it in (data or {}).get("items", [])]
+    views += [0] * (len(months) - len(views))  # Monate ohne Artikel zählen als 0
+    time.sleep(0.15)  # höflich bleiben, sonst bremst Wikimedia mit HTTP 429
+    return int(statistics.median(views))
+
+
 def era_factor(birth):
     """Gesichter heutiger Promis kennt man eher als die historischer Persönlichkeiten."""
     if birth is None:
@@ -268,7 +284,7 @@ def main():
     labels = occupation_labels()
     months = last_months()
     report = [f"Top-Artikel: {months[0][0]}-{months[0][1]:02d} bis {months[-1][0]}-{months[-1][1]:02d}; "
-              "Seitenaufrufe: Median der letzten 60 Tage", "",
+              "Seitenaufrufe: Vorauswahl 60 Tage, dann Median über 12 Monate", "",
               "## Berufe (Kontrolle der Wikidata-IDs)", ""]
     for q, code in OCCUPATIONS.items():
         report.append(f"- {q} → {code}: {labels.get(q, '??? unbekannt')}")
@@ -354,6 +370,32 @@ def main():
                     by_title[title]["views"] = v
             if n % 100 == 0:
                 log(f"  Seitenaufrufe {n}/{len(title_batches)} Gruppen")
+
+    # Schritt 5: Für die aussichtsreichsten Kandidaten den Median über 12 Monate nachladen –
+    # 60 Tage sind noch anfällig für Nachrichtenwellen (Wahlkampf, Skandale).
+    ranked = sorted((p for p in people.values() if p["views"] > 0),
+                    key=lambda p: -score(p["views"], p["links"], p["birth"]))[:REFINE]
+
+    def refine(p):
+        try:
+            return p["qid"], median_monthly_views(p["title"], months)
+        except RuntimeError:
+            return p["qid"], None
+
+    refined = 0
+    with ThreadPoolExecutor(max_workers=MONTHLY_PARALLEL) as pool:
+        for n, (qid, v) in enumerate(pool.map(refine, ranked), 1):
+            if v is not None:
+                people[qid]["views60"] = people[qid]["views"]
+                people[qid]["views"] = v
+                refined += 1
+            if n % 1000 == 0:
+                log(f"  12-Monats-Werte {n}/{len(ranked)}")
+    report.append(f"- 12-Monats-Median für {refined} von {len(ranked)} Kandidaten geladen")
+    refined_ids = {p["qid"] for p in ranked}
+    for p in people.values():
+        if p["qid"] not in refined_ids:
+            p["views"] = 0  # außerhalb der Vorauswahl: zu unbekannt
 
     rows = []
     for p in people.values():

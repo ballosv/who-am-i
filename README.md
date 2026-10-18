@@ -61,7 +61,7 @@ Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bek
 plus mehrere Tausend aus Wikidata erzeugte (`core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv`).
 Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenliste erzeugen*: Bereich aus dem Beruf,
 Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten. **Bekanntheit** = Seitenaufrufe
-der deutschen Wikipedia (Median der Tagesaufrufe der letzten 60 Tage, robust gegen kurze Ausschläge);
+der deutschen Wikipedia (Vorauswahl über 60 Tage, dann Median der Monatsaufrufe der letzten 12 Monate, robust gegen Nachrichtenwellen);
 die Anzahl der Sprachversionen gibt nur einen kleinen Bonus. Zusätzlich werden die meistaufgerufenen Artikel
 der letzten 12 Monate als Kandidaten aufgenommen, damit auch hierzulande bekannte TV-Promis dabei sind. Daraus ergeben sich drei Bekanntheitsstufen,
 einstellbar als *Extrem bekannt* (ca. 360 Personen), *Sehr bekannt* (ca. 1.040, Standard) und *Bekannt* (ca. 1.975); die unbekanntesten Personen der Wikidata-Liste sind nie im Spiel. Bekanntere Personen kommen häufiger dran.
