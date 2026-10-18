@@ -46,10 +46,21 @@ data class GameSettings(
     val decades: Set<Decade> = emptySet(),
     val origins: Set<Origin> = emptySet(),
     val fame: FameLevel = FameLevel.VERY_FAMOUS,
+    /** Ausgeschlossene Kategorien (Personen mit einer davon kommen nicht dran). */
+    val excludedAreas: Set<Area> = emptySet(),
+    val excludedDecades: Set<Decade> = emptySet(),
+    val excludedOrigins: Set<Origin> = emptySet(),
 ) {
     val tileCount: Int get() = gridSize * gridSize
 
-    val celebrityFilter: CelebrityFilter get() = CelebrityFilter(areas, decades, origins, fame)
+    val celebrityFilter: CelebrityFilter
+        get() = CelebrityFilter(areas, decades, origins, fame, excludedAreas, excludedDecades, excludedOrigins)
+
+    /** Alle Kategorien wieder zulassen (Bekanntheit bleibt). */
+    fun withAllCategories(): GameSettings = copy(
+        areas = emptySet(), decades = emptySet(), origins = emptySet(),
+        excludedAreas = emptySet(), excludedDecades = emptySet(), excludedOrigins = emptySet(),
+    )
 
     fun normalized(): GameSettings = copy(
         gridSize = gridSize.coerceIn(MIN_GRID, MAX_GRID),
