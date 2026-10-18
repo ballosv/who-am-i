@@ -140,6 +140,7 @@ class HostEngine(
                 message = null,
                 lastEvent = null,
                 solution = null,
+                credit = null,
             )
         }
     }
@@ -157,6 +158,7 @@ class HostEngine(
                 pausedAt = null,
                 buzzPlayerId = null,
                 solution = null,
+                credit = null,
                 answerDeadline = 0,
                 passedIds = emptyList(),
             )
@@ -242,6 +244,7 @@ class HostEngine(
             it.copy(
                 phase = Phase.ROUND_RESULT,
                 solution = q.displayName,
+                credit = q.credit,
                 lastEvent = GameEvent(++eventCounter, EventType.ALL_PASSED),
                 nextRoundAt = now + RESULT_MS,
                 pausedAt = null,
@@ -261,6 +264,7 @@ class HostEngine(
                     phase = Phase.ROUND_RESULT,
                     players = it.players.map { p -> if (p.id == playerId) p.copy(score = p.score + points) else p },
                     solution = q.displayName,
+                    credit = q.credit,
                     lastEvent = GameEvent(++eventCounter, EventType.CORRECT, playerId, points, text),
                     nextRoundAt = now + RESULT_MS,
                     pausedAt = null,
@@ -304,6 +308,7 @@ class HostEngine(
                         it.copy(
                             phase = Phase.ROUND_RESULT,
                             solution = q.displayName,
+                            credit = q.credit,
                             lastEvent = GameEvent(++eventCounter, EventType.UNSOLVED),
                             nextRoundAt = now + RESULT_MS,
                         )
@@ -335,6 +340,7 @@ class HostEngine(
                 ownerId = null,
                 buzzPlayerId = null,
                 solution = null,
+                credit = null,
                 lastEvent = null,
                 players = s.players.filter { it.connected }
                     .map { it.copy(ready = false, imageCount = 0, score = 0) },

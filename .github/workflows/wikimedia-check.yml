@@ -1,0 +1,21 @@
+name: Wikimedia-Check
+
+# Prüft die Personenliste und die Foto-Abfragen gegen Wikipedia/Wikidata/Commons.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**", "feature/**"]
+    paths:
+      - "tools/check_wikimedia.py"
+      - "core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt"
+      - "app/src/main/kotlin/de/ballosv/whoami/content/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tools/check_wikimedia.py

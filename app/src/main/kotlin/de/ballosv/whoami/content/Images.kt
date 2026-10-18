@@ -21,8 +21,28 @@ object Images {
         val side = minOf(w, h)
         val x = (w - side) / 2
         val y = if (h > w) ((h - side) * 0.2f).toInt() else 0
-        val cropped = Bitmap.createBitmap(source, x, y, side, side)
-        val scaled = if (side > TARGET_SIZE) Bitmap.createScaledBitmap(cropped, TARGET_SIZE, TARGET_SIZE, true) else cropped
+        return compress(Bitmap.createBitmap(source, x, y, side, side))
+    }
+
+    /** Dekodiert so verkleinert, dass die kurze Seite noch mindestens [TARGET_SIZE] Pixel hat. */
+    fun decodeSampled(data: ByteArray): Bitmap? {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+        if (opts.outWidth <= 0) return null
+        val sample = sampleSize(minOf(opts.outWidth, opts.outHeight))
+        return BitmapFactory.decodeByteArray(data, 0, data.size, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
+    /** Quadratischer Ausschnitt um ([cx], [cy]) mit Kantenlänge [side], innerhalb des Bildes gehalten. */
+    fun cropSquareJpeg(source: Bitmap, cx: Float, cy: Float, side: Int): ByteArray {
+        val s = side.coerceIn(1, minOf(source.width, source.height))
+        val x = (cx - s / 2f).toInt().coerceIn(0, source.width - s)
+        val y = (cy - s / 2f).toInt().coerceIn(0, source.height - s)
+        return compress(Bitmap.createBitmap(source, x, y, s, s))
+    }
+
+    private fun compress(square: Bitmap): ByteArray {
+        val scaled = if (square.width > TARGET_SIZE) Bitmap.createScaledBitmap(square, TARGET_SIZE, TARGET_SIZE, true) else square
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
         return out.toByteArray()

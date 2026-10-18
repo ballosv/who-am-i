@@ -35,6 +35,8 @@ data class Question(
     val lastName: String,
     /** Battle-Modus: Spieler, von dem das Bild stammt. */
     val ownerId: String? = null,
+    /** Bildnachweis (Urheber, Lizenz) – wird mit der Auflösung angezeigt. */
+    val credit: String? = null,
 ) {
     val displayName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 }
@@ -82,6 +84,8 @@ data class GameSnapshot(
     val passedIds: List<String> = emptyList(),
     val lastEvent: GameEvent? = null,
     val solution: String? = null,
+    /** Bildnachweis zur [solution], erst mit der Auflösung gesetzt. */
+    val credit: String? = null,
     val nextRoundAt: Long = 0,
     val tvMode: Boolean = false,
     val preparingProgress: Float = 0f,
