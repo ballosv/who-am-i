@@ -54,7 +54,7 @@ import de.ballosv.whoami.ui.theme.Accent
 fun StartScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val requestInvites = rememberNearbyPermissionRequest(withNotifications = true) { granted ->
-        if (granted) vm.setInviteListening(true)
+        if (granted) vm.changeInviteListening(true)
         else Toast.makeText(context, "Ohne Berechtigung können keine Einladungen empfangen werden", Toast.LENGTH_LONG).show()
     }
     Column(
@@ -86,7 +86,7 @@ fun StartScreen(vm: AppViewModel) {
                 }
                 Switch(
                     checked = vm.inviteListening,
-                    onCheckedChange = { if (it) requestInvites() else vm.setInviteListening(false) },
+                    onCheckedChange = { if (it) requestInvites() else vm.changeInviteListening(false) },
                 )
             }
         }

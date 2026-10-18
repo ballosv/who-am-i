@@ -93,7 +93,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.playerName = name
     }
 
-    fun setInviteListening(enabled: Boolean) {
+    fun changeInviteListening(enabled: Boolean) {
         inviteListening = enabled
         prefs.inviteListening = enabled
         if (enabled && session == null) InviteListenerService.start(getApplication()) else stopListener()
