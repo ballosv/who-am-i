@@ -6,6 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.TextButton
 import de.ballosv.whoami.core.Area
 import de.ballosv.whoami.core.CELEBRITIES
@@ -229,24 +235,32 @@ private fun TileGapPreview(gridSize: Int, gapDp: Int, modifier: Modifier = Modif
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
-    val available = remember(s.areas, s.decades, s.origins, s.fame) { s.celebrityFilter.apply(CELEBRITIES).size }
+    val filter = s.celebrityFilter
+    val available = remember(filter) { filter.apply(CELEBRITIES).size }
     SectionCard("Kategorien") {
         Text(
-            "Ohne Auswahl sind alle Personen dabei. Mehrere Kategorien einer Gruppe werden kombiniert, " +
-                "z. B. Musik + 80er = Musiker der 80er.",
+            "Ohne Auswahl sind alle Personen dabei. Einmal tippen wählt eine Kategorie aus, nochmal tippen " +
+                "schließt sie aus (rot), ein drittes Mal hebt das wieder auf. Mehrere Kategorien einer Gruppe " +
+                "werden kombiniert, z. B. Musik + 80er = Musiker der 80er.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text("Bekanntheit", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         // Von „Bekannt“ (meiste Personen) bis „Extrem bekannt“ (leichteste Runden)
         Choice(options = FameLevel.entries.reversed().map { it.label to it }, selected = s.fame) { onChange(s.copy(fame = it)) }
-        ChipGroup("Bereich", Area.entries, s.areas, { it.label }) { onChange(s.copy(areas = it)) }
-        ChipGroup("Jahrzehnt", Decade.entries, s.decades, { it.label }) { onChange(s.copy(decades = it)) }
-        ChipGroup("Herkunft", Origin.entries, s.origins, { it.label }) { onChange(s.copy(origins = it)) }
+        ChipGroup("Bereich", Area.entries, s.areas, s.excludedAreas, { it.label }) { inc, exc ->
+            onChange(s.copy(areas = inc, excludedAreas = exc))
+        }
+        ChipGroup("Jahrzehnt", Decade.entries, s.decades, s.excludedDecades, { it.label }) { inc, exc ->
+            onChange(s.copy(decades = inc, excludedDecades = exc))
+        }
+        ChipGroup("Herkunft", Origin.entries, s.origins, s.excludedOrigins, { it.label }) { inc, exc ->
+            onChange(s.copy(origins = inc, excludedOrigins = exc))
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when {
-                    s.celebrityFilter.isAll -> "$available Personen (${s.fame.label})"
+                    filter.isAll -> "$available Personen (${s.fame.label})"
                     available == 1 -> "1 Person passt zur Auswahl"
                     else -> "$available Personen passen zur Auswahl"
                 },
@@ -254,8 +268,8 @@ private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
                 color = if (available == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f),
             )
-            if (!s.celebrityFilter.isAll) {
-                TextButton(onClick = { onChange(s.copy(areas = emptySet(), decades = emptySet(), origins = emptySet())) }) {
+            if (!filter.isAll) {
+                TextButton(onClick = { onChange(s.withAllCategories()) }) {
                     Text("Alle")
                 }
             }
@@ -275,17 +289,50 @@ private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
     }
 }
 
+/**
+ * Kategorien mit drei Zuständen: neutral -> ausgewählt -> ausgeschlossen (rot) -> neutral.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun <T> ChipGroup(title: String, options: List<T>, selected: Set<T>, label: (T) -> String, onChange: (Set<T>) -> Unit) {
+private fun <T> ChipGroup(
+    title: String,
+    options: List<T>,
+    included: Set<T>,
+    excluded: Set<T>,
+    label: (T) -> String,
+    onChange: (included: Set<T>, excluded: Set<T>) -> Unit,
+) {
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { option ->
-            val isSelected = option in selected
+            val isIncluded = option in included
+            val isExcluded = option in excluded
             FilterChip(
-                selected = isSelected,
-                onClick = { onChange(if (isSelected) selected - option else selected + option) },
-                label = { Text(label(option)) },
+                selected = isIncluded || isExcluded,
+                onClick = {
+                    when {
+                        isIncluded -> onChange(included - option, excluded + option)
+                        isExcluded -> onChange(included, excluded - option)
+                        else -> onChange(included + option, excluded)
+                    }
+                },
+                label = {
+                    Text(label(option), textDecoration = if (isExcluded) TextDecoration.LineThrough else null)
+                },
+                leadingIcon = when {
+                    isIncluded -> ({ Icon(Icons.Filled.Check, contentDescription = "ausgewählt", Modifier.size(18.dp)) })
+                    isExcluded -> ({ Icon(Icons.Filled.Block, contentDescription = "ausgeschlossen", Modifier.size(18.dp)) })
+                    else -> null
+                },
+                colors = if (isExcluded) {
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.error,
+                        selectedLabelColor = MaterialTheme.colorScheme.onError,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onError,
+                    )
+                } else {
+                    FilterChipDefaults.filterChipColors()
+                },
             )
         }
     }
