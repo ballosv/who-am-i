@@ -55,22 +55,33 @@ OCCUPATIONS = {
 # Deutschland (inkl. historischer Staaten), Österreich, Schweiz
 GERMAN_STATES = {"Q183", "Q713750", "Q16957", "Q7318", "Q43287", "Q41304", "Q27306", "Q40", "Q39", "Q12548", "Q131964"}
 
-QUERY = """
-SELECT ?p ?links ?title ?label ?birth ?death ?family
-       (GROUP_CONCAT(DISTINCT STRAFTER(STR(?c), "entity/"); separator=",") AS ?cits)
-WHERE {
+# Schritt 1: pro Beruf nur Person + Bekanntheit (schnell)
+CANDIDATES = """
+SELECT ?p ?links WHERE {
   ?p wdt:P106 wd:%(occ)s ; wikibase:sitelinks ?links .
   FILTER(?links >= %(min)d)
-  ?p wdt:P31 wd:Q5 ; wdt:P18 ?img .
+  ?article schema:about ?p ; schema:isPartOf <https://de.wikipedia.org/> .
+}
+"""
+
+# Schritt 2: Details für eine Gruppe von Personen
+DETAILS = """
+SELECT ?p ?title ?label ?birth ?death ?img ?c ?family WHERE {
+  VALUES ?p { %(values)s }
+  ?p wdt:P31 wd:Q5 .
   ?article schema:about ?p ; schema:isPartOf <https://de.wikipedia.org/> ; schema:name ?title .
-  ?p rdfs:label ?label . FILTER(LANG(?label) = "de")
+  OPTIONAL { ?p rdfs:label ?label . FILTER(LANG(?label) = "de") }
+  OPTIONAL { ?p wdt:P18 ?img }
   OPTIONAL { ?p wdt:P569 ?birth }
   OPTIONAL { ?p wdt:P570 ?death }
   OPTIONAL { ?p wdt:P27 ?c }
   OPTIONAL { ?p wdt:P734 ?fam . ?fam rdfs:label ?family . FILTER(LANG(?family) IN ("de", "mul", "en")) }
 }
-GROUP BY ?p ?links ?title ?label ?birth ?death ?family
 """
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
 
 
 def sparql(query):
@@ -78,10 +89,10 @@ def sparql(query):
     for attempt in range(5):
         try:
             req = urllib.request.Request(ENDPOINT, data=data, headers={"User-Agent": UA, "Accept": "application/sparql-results+json"})
-            with urllib.request.urlopen(req, timeout=120) as r:
+            with urllib.request.urlopen(req, timeout=75) as r:
                 return json.load(r)["results"]["bindings"]
         except Exception as e:  # noqa: BLE001
-            print(f"  Fehler ({attempt + 1}/5): {e}", file=sys.stderr)
+            log(f"  Fehler ({attempt + 1}/5): {e}")
             time.sleep(5 * (attempt + 1))
     raise RuntimeError("SPARQL-Abfrage fehlgeschlagen")
 
@@ -141,34 +152,69 @@ def main():
     for q, code in OCCUPATIONS.items():
         report.append(f"- {q} → {code}: {labels.get(q, '??? unbekannt')}")
 
+    # Schritt 1: Kandidaten mit Bekanntheit und Bereichen sammeln
+    links = {}
+    areas = collections.defaultdict(set)
+    for i, (occ, code) in enumerate(OCCUPATIONS.items(), 1):
+        try:
+            rows = sparql(CANDIDATES % {"occ": occ, "min": MIN_LINKS})
+        except RuntimeError:
+            log(f"[{i}/{len(OCCUPATIONS)}] {occ}: übersprungen (Zeitüberschreitung)")
+            report.append(f"- WARNUNG: Beruf {occ} übersprungen (Zeitüberschreitung)")
+            continue
+        for r in rows:
+            qid = r["p"]["value"].rsplit("/", 1)[1]
+            links[qid] = int(r["links"]["value"])
+            areas[qid].add(code)
+        log(f"[{i}/{len(OCCUPATIONS)}] {occ} ({labels.get(occ, '?')}): {len(rows)} Kandidaten, gesamt {len(links)}")
+        time.sleep(1)
+
+    # Nur Kandidaten, die mit Bonus noch unter die besten TARGET kommen können
+    ranked = sorted(links.values(), reverse=True)
+    cutoff = ranked[min(len(ranked), TARGET) - 1] / GERMAN_BONUS if ranked else 0
+    selected = [q for q, n in links.items() if n >= cutoff]
+    log(f"Details für {len(selected)} von {len(links)} Kandidaten (Sitelinks >= {cutoff:.0f})")
+
+    # Schritt 2: Details in Gruppen laden
     people = {}
-    for occ, code in OCCUPATIONS.items():
-        rows = sparql(QUERY % {"occ": occ, "min": MIN_LINKS})
-        print(f"{occ} ({labels.get(occ, '?')}): {len(rows)} Zeilen", file=sys.stderr)
+    batch_size = 150
+    for i in range(0, len(selected), batch_size):
+        batch = selected[i:i + batch_size]
+        try:
+            rows = sparql(DETAILS % {"values": " ".join("wd:" + q for q in batch)})
+        except RuntimeError:
+            log(f"  Gruppe {i // batch_size + 1} übersprungen")
+            continue
         for r in rows:
             qid = r["p"]["value"].rsplit("/", 1)[1]
             p = people.setdefault(qid, {
-                "qid": qid, "title": r["title"]["value"], "label": r["label"]["value"],
-                "links": int(r["links"]["value"]), "areas": set(), "cits": set(),
-                "birth": None, "death": None, "family": None,
+                "qid": qid, "title": r["title"]["value"], "label": None, "links": links[qid],
+                "areas": areas[qid], "cits": set(), "birth": None, "death": None, "family": None, "img": False,
             })
-            p["areas"].add(code)
-            p["cits"].update(c for c in r.get("cits", {}).get("value", "").split(",") if c)
+            if "label" in r:
+                p["label"] = r["label"]["value"]
+            if "img" in r:
+                p["img"] = True
+            if "c" in r:
+                p["cits"].add(r["c"]["value"].rsplit("/", 1)[1])
             b, d = year(r.get("birth", {}).get("value")), year(r.get("death", {}).get("value"))
             if b is not None and (p["birth"] is None or b < p["birth"]):
                 p["birth"] = b
             if d is not None:
                 p["death"] = d
             fam = r.get("family", {}).get("value")
-            if fam and fam in p["label"] and (p["family"] is None or len(fam) > len(p["family"])):
+            if fam and (p["family"] is None or len(fam) > len(p["family"])):
                 p["family"] = fam
-        time.sleep(1)
+        log(f"  Details {min(i + batch_size, len(selected))}/{len(selected)}")
+        time.sleep(0.5)
 
     rows = []
     for p in people.values():
         decs = decades(p["birth"], p["death"])
-        if not decs:
+        if not decs or not p["img"] or not p["label"]:
             continue
+        if p["family"] and p["family"] not in p["label"]:
+            p["family"] = None
         german = bool(p["cits"] & GERMAN_STATES)
         areas = set(p["areas"])
         if (p["death"] is not None and p["death"] < 2000) or (p["birth"] is not None and p["birth"] < 1900):
