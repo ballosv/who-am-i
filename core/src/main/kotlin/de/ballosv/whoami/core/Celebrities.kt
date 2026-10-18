@@ -75,7 +75,7 @@ val CELEBRITIES: List<Celebrity> = listOf(
     // Musik
     p("Taylor", "Swift", "M", "00 10 20", INT),
     p("Ed", "Sheeran", "M", "10 20", INT),
-    p("Adele", "", "M", "00 10 20", INT, "Adele"),
+    p("Adele", "", "M", "00 10 20", INT, "Adele (Sängerin)"),
     p("Rihanna", "", "M", "00 10", INT, "Rihanna"),
     p("Beyoncé", "", "M", "00 10 20", INT, "Beyoncé"),
     p("Lady", "Gaga", "M A", "00 10 20", INT),
