@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Am I? – TV</title>
+<style>
+  :root { --bg:#14112b; --card:#221d45; --accent:#ffb300; --tile:#6c4bf4; --tile2:#4a2fd0; --text:#f4f1ff; --muted:#a9a3d1; --good:#3ddc84; --bad:#ff5370; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui, sans-serif; overflow:hidden; }
+  #app { display:grid; grid-template-columns: 1fr 30vw; gap:3vw; height:100%; padding:4vh 3vw; }
+  #stage { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; }
+  #frame { position:relative; height:74vh; aspect-ratio:1; border-radius:2vh; overflow:hidden; background:#000; box-shadow:0 2vh 6vh rgba(0,0,0,.5); }
+  #frame img { width:100%; height:100%; object-fit:cover; display:block; }
+  #tiles { position:absolute; inset:0; display:grid; }
+  .tile { background:linear-gradient(135deg,var(--tile),var(--tile2)); margin:1px; border-radius:.6vh; transition:none; }
+  #top { display:flex; gap:4vw; align-items:baseline; font-size:3vh; color:var(--muted); }
+  #points { font-size:9vh; font-weight:800; color:var(--accent); min-width:20vh; text-align:center; display:inline-block; }
+  #points.drop { animation:drop .45s ease-out; }
+  @keyframes drop { 0%{transform:scale(1.25); color:#fff;} 100%{transform:scale(1);} }
+  #side h2 { font-size:3.2vh; margin:0 0 2vh; color:var(--muted); font-weight:600; }
+  .row { display:flex; align-items:center; gap:1.5vh; background:var(--card); border-radius:1.4vh; padding:1.6vh 2vh; margin-bottom:1.2vh; font-size:3vh; transition:transform .4s; }
+  .row .rank { width:4vh; color:var(--muted); font-weight:700; }
+  .row .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .score { font-weight:800; }
+  .row.buzz { outline:.5vh solid var(--accent); }
+  .row.owner .name::after { content:" · zeigt Bild"; color:var(--accent); font-size:2.2vh; }
+  #overlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(20,17,43,.82); font-size:6vh; text-align:center; gap:2vh; }
+  #overlay.show { display:flex; }
+  #overlay .big { font-size:22vh; font-weight:900; color:var(--accent); }
+  #status { font-size:3.4vh; min-height:5vh; text-align:center; }
+  #bar { width:74vh; height:1.2vh; background:var(--card); border-radius:1vh; overflow:hidden; visibility:hidden; }
+  #bar div { height:100%; background:var(--accent); width:0; }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="top"><span id="round"></span><span id="points">–</span><span>Punkte</span></div>
+    <div id="frame"><img id="img" alt=""><div id="tiles"></div></div>
+    <div id="bar"><div></div></div>
+    <div id="status"></div>
+  </div>
+  <div id="side"><h2>Rangliste</h2><div id="ranking"></div></div>
+</div>
+<div id="overlay"></div>
+<script>
+// Uhrensynchronisation: Versatz zwischen performance.now() und Host-Uhr, beste Messung (kleinste Laufzeit) zählt.
+let offset = 0, bestRtt = Infinity, state = null, lastPoints = null, lastImage = null, lastEvent = null;
+const $ = id => document.getElementById(id);
+const hostNow = () => performance.now() + offset;
+
+async function poll() {
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/state', { cache: 'no-store' });
+    const data = await res.json();
+    const t1 = performance.now(), rtt = t1 - t0;
+    const sample = data.now - (t0 + rtt / 2);
+    if (rtt <= bestRtt * 1.5) { offset = bestRtt === Infinity ? sample : offset * 0.7 + sample * 0.3; }
+    bestRtt = Math.min(bestRtt * 1.05, rtt);
+    if (data.s && (!state || data.s.version >= state.version)) onState(data.s);
+  } catch (e) { $('status').textContent = 'Verbindung zum Host-Handy unterbrochen …'; }
+  setTimeout(poll, 250);
+}
+
+function revealed(s, t) {
+  if (s.phase === 'ROUND_RESULT' || s.phase === 'FINISHED') return s.settings.gridSize ** 2;
+  if (s.phase !== 'REVEALING' && s.phase !== 'ANSWERING') return 0;
+  const el = (s.pausedAt ?? t) - s.revealAnchor;
+  if (el < 0) return 0;
+  return Math.min(Math.floor(el / s.settings.revealIntervalMs), s.settings.gridSize ** 2);
+}
+function pointsFor(s, n) { return Math.max(s.settings.minPoints, s.settings.maxPoints - n * s.settings.pointsStepPerTile); }
+function nameOf(s, id) { const p = s.players.find(p => p.id === id); return p ? p.name : '?'; }
+
+function onState(s) {
+  state = s;
+  const tiles = $('tiles'), g = s.settings.gridSize;
+  if (s.imageId !== lastImage) {
+    lastImage = s.imageId;
+    $('img').src = s.imageId ? '/image/' + encodeURIComponent(s.imageId) : '';
+    tiles.style.gridTemplateColumns = `repeat(${g}, 1fr)`;
+    tiles.innerHTML = '';
+    for (let i = 0; i < g * g; i++) { const d = document.createElement('div'); d.className = 'tile'; tiles.appendChild(d); }
+  }
+  // Rangliste
+  const ranking = [...s.players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  $('ranking').innerHTML = ranking.map((p, i) =>
+    `<div class="row ${p.id === s.buzzPlayerId ? 'buzz' : ''} ${p.id === s.ownerId ? 'owner' : ''}">
+       <span class="rank">${i + 1}.</span><span class="name">${esc(p.name)}</span><span class="score">${p.score}</span></div>`).join('');
+  $('round').textContent = s.roundCount ? `Person ${s.roundIndex + 1} / ${s.roundCount}` : '';
+  // Ereignisse
+  if (s.lastEvent && (!lastEvent || s.lastEvent.id !== lastEvent.id)) {
+    lastEvent = s.lastEvent;
+    const e = s.lastEvent, who = esc(nameOf(s, e.playerId));
+    const text = { CORRECT: `<span class="good">${who} hat es! +${e.points}</span>`,
+                   WRONG: `<span class="bad">${who}: „${esc(e.answer || '')}" ist falsch (${e.points})</span>`,
+                   TIMEOUT: `<span class="bad">${who}: Zeit abgelaufen (${e.points})</span>`,
+                   UNSOLVED: 'Niemand hat es erraten' }[e.type];
+    $('status').innerHTML = text;
+  }
+}
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function frame() {
+  requestAnimationFrame(frame);
+  const s = state; if (!s) return;
+  const t = hostNow(), ov = $('overlay');
+  const n = revealed(s, t), order = s.tileOrder || [], kids = $('tiles').children;
+  const el = (s.pausedAt ?? t) - s.revealAnchor;
+  const fade = el < 0 ? 0 : Math.min(1, (el % s.settings.revealIntervalMs) / Math.min(450, s.settings.revealIntervalMs));
+  for (let i = 0; i < kids.length; i++) kids[i].style.opacity = 1;
+  for (let i = 0; i < Math.min(n, order.length); i++) {
+    const k = kids[order[i]]; if (!k) continue;
+    k.style.opacity = (i === n - 1 && s.phase === 'REVEALING') ? (1 - fade) : 0;
+    k.style.transform = (i === n - 1 && s.phase === 'REVEALING') ? `scale(${1 - fade * 0.4})` : '';
+  }
+  const pts = s.phase === 'ANSWERING' ? s.buzzPoints : pointsFor(s, n);
+  if (s.phase === 'REVEALING' || s.phase === 'ANSWERING') {
+    if (pts !== lastPoints) { const p = $('points'); p.textContent = pts; p.classList.remove('drop'); void p.offsetWidth; p.classList.add('drop'); lastPoints = pts; }
+  }
+  const bar = $('bar');
+  if (s.phase === 'ANSWERING') {
+    bar.style.visibility = 'visible';
+    const total = s.settings.answerTimeSeconds * 1000, left = Math.max(0, s.answerDeadline - t);
+    bar.firstElementChild.style.width = (100 * left / total) + '%';
+    $('status').innerHTML = `<b>${esc(nameOf(s, s.buzzPlayerId))}</b> antwortet … ${Math.ceil(left / 1000)} s`;
+  } else bar.style.visibility = 'hidden';
+
+  let html = '';
+  if (s.phase === 'LOBBY') html = 'Warten auf Spieler …<div style="font-size:3.5vh;color:var(--muted)">' + s.players.map(p => esc(p.name) + (p.ready ? ' ✓' : '')).join(' · ') + '</div>';
+  else if (s.phase === 'PREPARING') html = (s.message ? esc(s.message) : 'Bilder werden vorbereitet …') + `<div style="font-size:4vh">${Math.round(s.preparingProgress * 100)} %</div>`;
+  else if (s.phase === 'COUNTDOWN') { const c = Math.ceil((s.countdownEndsAt - t) / 1000); html = c > 0 ? `<div class="big">${c}</div>` : ''; }
+  else if (s.phase === 'REVEALING' && t < s.revealAnchor) html = `Nächste Person …`;
+  else if (s.phase === 'ROUND_RESULT') html = `<div style="color:var(--muted);font-size:4vh">Das war</div><div class="big" style="font-size:12vh">${esc(s.solution || '')}</div>` + $('status').innerHTML;
+  else if (s.phase === 'FINISHED') {
+    const r = [...s.players].sort((a, b) => b.score - a.score);
+    html = `<div class="big" style="font-size:12vh">🏆 ${esc(r[0] ? r[0].name : '')}</div>` + r.map((p, i) => `${i + 1}. ${esc(p.name)} – ${p.score}`).join('<br>');
+  }
+  if (html) {
+    if (ov.innerHTML !== html) ov.innerHTML = html;
+    ov.classList.add('show');
+    // Im Ergebnis die Antwort hinter dem Overlay sichtbar lassen
+    ov.style.background = s.phase === 'ROUND_RESULT' ? 'rgba(20,17,43,.55)' : 'rgba(20,17,43,.9)';
+  } else ov.classList.remove('show');
+}
+poll();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
