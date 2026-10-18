@@ -59,6 +59,8 @@ private fun SessionContent(vm: AppViewModel, session: GameSession) {
     val notice by session.notice.collectAsStateCompat()
     val context = LocalContext.current
     var confirmLeave by remember { mutableStateOf(false) }
+    // Der Toast ist kurz und abgeschnitten; die Ursache bleibt deshalb auch auf dem Fehlerbildschirm stehen.
+    var lastNotice by remember { mutableStateOf<String?>(null) }
 
     // Während eines Spiels soll das Display nicht ausgehen.
     val view = LocalView.current
@@ -69,6 +71,7 @@ private fun SessionContent(vm: AppViewModel, session: GameSession) {
     LaunchedEffect(notice) {
         notice?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            lastNotice = it
             session.consumeNotice()
         }
     }
@@ -92,7 +95,10 @@ private fun SessionContent(vm: AppViewModel, session: GameSession) {
         status is SessionStatus.Ended -> CenterMessage((status as SessionStatus.Ended).reason, "Zum Hauptmenü", vm::leaveSession)
         s == null -> CenterMessage("Verbinde …")
         s.phase == Phase.LOBBY && s.settings.mode == GameMode.SINGLE ->
-            CenterMessage("Das Spiel konnte nicht gestartet werden.", "Erneut versuchen") { (session as? HostSession)?.startGame() }
+            CenterMessage(
+                listOfNotNull("Das Spiel konnte nicht gestartet werden.", lastNotice).joinToString("\n\n"),
+                "Erneut versuchen",
+            ) { (session as? HostSession)?.startGame() }
         s.phase == Phase.LOBBY -> LobbyScreen(vm, session, s)
         s.phase == Phase.FINISHED -> FinishedScreen(session, s, onMenu = vm::leaveSession)
         else -> GameScreen(session, s)

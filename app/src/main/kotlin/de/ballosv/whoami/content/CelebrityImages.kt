@@ -64,15 +64,17 @@ object CelebrityImages {
         // Fortschritt laufend melden, sobald ein Foto gefunden ist (nicht erst am Ende einer Gruppe)
         val found = AtomicInteger(0)
         progress(0, count)
+        Http.lastFailure = null
 
         while (result.size < count && candidates.isNotEmpty()) {
             val missing = count - result.size
             val batch = List(minOf(candidates.size, maxOf(4, missing + missing / 2 + 1))) { candidates.removeAt(0) }
+            // Ohne Artikeldaten geht es trotzdem weiter: die Wikidata-ID steht meist schon in der Liste.
             val articles = try {
                 articles(batch.map { it.wikiTitle })
             } catch (e: IOException) {
                 lastError = e
-                break
+                emptyMap()
             }
             val portraits = coroutineScope {
                 batch.map { celebrity ->
@@ -107,7 +109,12 @@ object CelebrityImages {
             }
         }
         if (result.isEmpty()) {
-            throw IOException("Promi-Bilder konnten nicht geladen werden. Besteht eine Internetverbindung?", lastError)
+            val cause = Http.lastFailure ?: lastError?.let { it.message ?: it.javaClass.simpleName }
+            throw IOException(
+                "Promi-Bilder konnten nicht geladen werden. Besteht eine Internetverbindung?" +
+                    (cause?.let { " ($it)" } ?: ""),
+                lastError,
+            )
         }
         found.set(result.size)
         history.record(skipped + used)
@@ -122,7 +129,7 @@ object CelebrityImages {
                 .shuffled()
                 .sortedBy { it.file in seen }
             for (photo in candidates.take(MAX_TRIES_PER_PERSON)) {
-                val bitmap = Http.get(photo.url)?.let(Images::decodeSampled) ?: continue
+                val bitmap = Http.image(photo.url)?.let(Images::decodeSampled) ?: continue
                 when (val face = FaceCropper.portrait(bitmap)) {
                     is FaceCropper.Result.Portrait -> return Portrait(face.jpeg, photo.credit, photo.file)
                     FaceCropper.Result.NoSingleFace -> continue
@@ -133,7 +140,7 @@ object CelebrityImages {
         }
         // Rückfall: Artikelbild der Wikipedia (auch Gemälde, daher notfalls ohne Gesichtserkennung zuschneiden)
         val thumb = article?.thumbUrl ?: return null
-        val bitmap = Http.get(thumb)?.let(Images::decodeSampled) ?: return null
+        val bitmap = Http.image(thumb)?.let(Images::decodeSampled) ?: return null
         val jpeg = (FaceCropper.portrait(bitmap) as? FaceCropper.Result.Portrait)?.jpeg ?: Images.toSquareJpeg(bitmap)
         val credit = article.imageName?.let { runCatching { CommonsPhotos.creditFor(it) }.getOrNull() } ?: "Bild: Wikipedia"
         return Portrait(jpeg, credit, article.imageName ?: thumb)
