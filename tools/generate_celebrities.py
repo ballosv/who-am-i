@@ -38,7 +38,8 @@ WIKI_API = "https://de.wikipedia.org/w/api.php"
 PAGEVIEWS = "https://wikimedia.org/api/rest_v1/metrics/pageviews"
 OUT = "core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv"
 TARGET = int(os.environ.get("TARGET", "4500"))
-MIN_LINKS = int(os.environ.get("MIN_LINKS", "15"))
+# Bei weniger Sprachversionen wird die Politiker-Abfrage so groß, dass Wikidata sie abschneidet.
+MIN_LINKS = int(os.environ.get("MIN_LINKS", "20"))
 MAX_CANDIDATES = int(os.environ.get("MAX_CANDIDATES", "30000"))
 SPARQL_PARALLEL = 4  # Wikidata erlaubt bis zu 5 gleichzeitige Abfragen
 VIEWS_PARALLEL = 3
@@ -284,9 +285,9 @@ def main():
     with ThreadPoolExecutor(max_workers=SPARQL_PARALLEL) as pool:
         for i, (occ, rows) in enumerate(pool.map(candidates, OCCUPATIONS), 1):
             if rows is None:
-                log(f"[{i}/{len(OCCUPATIONS)}] {occ}: übersprungen")
-                report.append(f"- WARNUNG: Beruf {occ} übersprungen (Zeitüberschreitung)")
-                continue
+                # Lieber abbrechen als eine Liste ohne ganzen Bereich (z. B. ohne Politiker) committen
+                log(f"[{i}/{len(OCCUPATIONS)}] {occ}: Abfrage fehlgeschlagen – Abbruch")
+                sys.exit(1)
             for r in rows:
                 links[r["p"]["value"].rsplit("/", 1)[1]] = int(r["links"]["value"])
             log(f"[{i}/{len(OCCUPATIONS)}] {occ} ({labels.get(occ, '?')}): {len(rows)}, gesamt {len(links)}")
