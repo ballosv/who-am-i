@@ -29,6 +29,7 @@
   #overlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; background:rgba(20,17,43,.82); font-size:6vh; text-align:center; gap:2vh; }
   #overlay.show { display:flex; }
   #overlay .big { font-size:22vh; font-weight:900; color:var(--accent); }
+  #hint { font-size:7vh; font-weight:900; color:var(--accent); letter-spacing:.6vh; font-family:monospace; min-height:0; }
   #status { font-size:3.4vh; min-height:5vh; text-align:center; }
   #bar { width:74vh; height:1.2vh; background:var(--card); border-radius:1vh; overflow:hidden; visibility:hidden; }
   #bar div { height:100%; background:var(--accent); width:0; }
@@ -40,6 +41,7 @@
   <div id="stage">
     <div id="top"><span id="round"></span><span id="points">–</span><span>Punkte</span></div>
     <div id="frame"><img id="img" alt=""><div id="tiles"></div></div>
+    <div id="hint"></div>
     <div id="bar"><div></div></div>
     <div id="status"></div>
   </div>
@@ -74,6 +76,18 @@ function revealed(s, t) {
   return Math.min(Math.floor(el / s.settings.revealIntervalMs), s.settings.gridSize ** 2);
 }
 function pointsFor(s, n) { return Math.max(s.settings.minPoints, s.settings.maxPoints - n * s.settings.pointsStepPerTile); }
+// „Name schrittweise aufdecken“ (wie NameReveal/GameSnapshot.pointsAt in der App)
+function nameLetters(s, t) {
+  if (!s.nameLetters || (s.phase !== 'REVEALING' && s.phase !== 'ANSWERING')) return 0;
+  const el = (s.pausedAt ?? t) - s.revealAnchor - s.settings.gridSize ** 2 * s.settings.revealIntervalMs;
+  return el < 0 ? 0 : Math.min(Math.floor(el / s.settings.revealIntervalMs), s.nameLetters);
+}
+function pointsAt(s, t, n) {
+  const letters = nameLetters(s, t);
+  if (!letters) return pointsFor(s, n);
+  const stage = (s.nameThresholds || []).filter(x => letters >= x).length;
+  return Math.floor(pointsFor(s, s.settings.gridSize ** 2) * (4 - stage) / 4);
+}
 function nameOf(s, id) { const p = s.players.find(p => p.id === id); return p ? p.name : '?'; }
 
 function onState(s) {
@@ -122,10 +136,12 @@ function frame() {
     k.style.opacity = (i === n - 1 && s.phase === 'REVEALING') ? (1 - fade) : 0;
     k.style.transform = (i === n - 1 && s.phase === 'REVEALING') ? `scale(${1 - fade * 0.4})` : '';
   }
-  const pts = s.phase === 'ANSWERING' ? s.buzzPoints : pointsFor(s, n);
+  const pts = s.phase === 'ANSWERING' ? s.buzzPoints : pointsAt(s, t, n);
   if (s.phase === 'REVEALING' || s.phase === 'ANSWERING') {
     if (pts !== lastPoints) { const p = $('points'); p.textContent = pts; p.classList.remove('drop'); void p.offsetWidth; p.classList.add('drop'); lastPoints = pts; }
   }
+  const hint = (s.phase === 'REVEALING' || s.phase === 'ANSWERING') && s.nameHint ? s.nameHint : '';
+  if ($('hint').textContent !== hint) $('hint').textContent = hint;
   const bar = $('bar');
   if (s.phase === 'ANSWERING') {
     bar.style.visibility = 'visible';

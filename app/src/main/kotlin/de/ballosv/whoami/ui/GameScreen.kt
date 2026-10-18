@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -126,6 +127,25 @@ private fun GameHeader(s: GameSnapshot, clock: State<Long>) {
 private fun BoardOverlay(s: GameSnapshot, clock: State<Long>, modifier: Modifier) {
     val waiting by remember(s) { derivedStateOf { s.phase == Phase.REVEALING && clock.value < s.revealAnchor } }
     Box(modifier, contentAlignment = Alignment.BottomCenter) {
+        val hint = s.nameHint
+        if (hint != null && (s.phase == Phase.REVEALING || s.phase == Phase.ANSWERING)) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.72f),
+                shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    hint,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Accent,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = 3.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp),
+                )
+            }
+        }
         if (waiting) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Nächste Person …", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color.White)

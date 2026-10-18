@@ -161,6 +161,9 @@ class HostEngine(
                 credit = null,
                 answerDeadline = 0,
                 passedIds = emptyList(),
+                nameLetters = if (s.settings.revealName) NameReveal.letterCount(q.displayName) else 0,
+                nameThresholds = if (s.settings.revealName) NameReveal.thresholds(q.firstName, q.lastName) else emptyList(),
+                nameHint = null,
             )
         }
     }
@@ -186,7 +189,9 @@ class HostEngine(
         when (s.phase) {
             Phase.REVEALING -> {
                 if (now < s.revealAnchor) return false
-                val points = Scoring.pointsFor(s.settings, s.revealedAt(ts))
+                // Name schon ganz aufgedeckt: Die Runde endet gleich ohne Punkte.
+                if (s.nameLetters > 0 && now >= s.revealAnchor + s.revealEndOffset) return false
+                val points = s.pointsAt(ts)
                 buzzAcceptedAt = now
                 update {
                     it.copy(
@@ -206,7 +211,7 @@ class HostEngine(
                 val earlier = playerId != s.buzzPlayerId && ts < s.buzzPressedAt &&
                     now - buzzAcceptedAt <= BUZZ_WINDOW_MS
                 if (!earlier) return false
-                val points = Scoring.pointsFor(s.settings, s.revealedAt(ts))
+                val points = s.pointsAt(ts)
                 update {
                     it.copy(
                         buzzPlayerId = playerId,
@@ -248,6 +253,7 @@ class HostEngine(
                 lastEvent = GameEvent(++eventCounter, EventType.ALL_PASSED),
                 nextRoundAt = now + RESULT_MS,
                 pausedAt = null,
+                nameHint = null,
             )
         }
     }
@@ -268,6 +274,7 @@ class HostEngine(
                     lastEvent = GameEvent(++eventCounter, EventType.CORRECT, playerId, points, text),
                     nextRoundAt = now + RESULT_MS,
                     pausedAt = null,
+                    nameHint = null,
                 )
             }
             return true
@@ -301,8 +308,13 @@ class HostEngine(
             Phase.COUNTDOWN -> if (now >= s.countdownEndsAt) startRound(0, s.countdownEndsAt)
             Phase.ANSWERING -> if (now >= s.answerDeadline) failAnswer(now, EventType.TIMEOUT, null)
             Phase.REVEALING -> {
-                val end = s.revealAnchor + s.settings.tileCount * s.settings.revealIntervalMs + UNSOLVED_GRACE_MS
-                if (now >= end) {
+                val letters = s.nameLettersAt(now)
+                if (letters > 0 && letters < s.nameLetters) {
+                    // Nächsten Buchstaben zeigen; der Name selbst bleibt bis dahin auf dem Host.
+                    val hint = NameReveal.hint(questions[s.roundIndex].displayName, letters)
+                    if (hint != s.nameHint) update { it.copy(nameHint = hint) }
+                }
+                if (now >= s.revealAnchor + s.revealEndOffset) {
                     val q = questions[s.roundIndex]
                     update {
                         it.copy(
@@ -311,6 +323,7 @@ class HostEngine(
                             credit = q.credit,
                             lastEvent = GameEvent(++eventCounter, EventType.UNSOLVED),
                             nextRoundAt = now + RESULT_MS,
+                            nameHint = null,
                         )
                     }
                 }
