@@ -38,8 +38,8 @@ class CategoriesTest {
         val very = count(CelebrityFilter(fame = FameLevel.VERY_FAMOUS))
         val extreme = count(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS))
         assertTrue("$extreme < $very < $famous", extreme in 100 until very && very < famous)
-        // Die unbekanntesten Personen sind in keiner Stufe dabei
-        assertTrue(famous < CELEBRITIES.size)
+        // In der Liste stehen nur bewertete Personen; „Bekannt“ umfasst alle
+        assertEquals(CELEBRITIES.size, famous)
         assertTrue(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS).apply(CELEBRITIES).any { it.lastName == "Merkel" })
         assertEquals("Alle Kategorien · Bekannt", CelebrityFilter(fame = FameLevel.FAMOUS).describe())
         assertEquals(FameLevel.VERY_FAMOUS, GameSettings().fame)
