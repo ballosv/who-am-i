@@ -52,8 +52,8 @@ class CategoriesTest {
 
     @Test fun generatedListIsParsedTieredAndMerged() {
         val lines = listOf(
-            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks",
-            "Q567\tAngela Merkel\tAngela\tMerkel\tP\t00 10\tD\t250",
+            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks\tviews",
+            "Q567\tAngela Merkel\tAngela\tMerkel\tP\t00 10\tD\t220\t250",
             "Q1\tNeue Person\tNeue\tPerson\tA M\t90 00\tI\t100",
             "Q2\tZweite Person\tZweite\tPerson\tS H\t50\tD\t60",
             "Q3\tKaputt\t\t\t\t\tI\t1",

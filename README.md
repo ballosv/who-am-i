@@ -60,10 +60,12 @@ Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bek
 **Personen:** 426 von Hand gepflegte Personen (`core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`)
 plus mehrere Tausend aus Wikidata erzeugte (`core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv`).
 Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenliste erzeugen*: Bereich aus dem Beruf,
-Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten, Bekanntheit aus der Anzahl
-der Wikipedia-Sprachversionen (deutschsprachige Personen mit Bonus). Daraus ergeben sich drei Bekanntheitsstufen,
+Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten. **Bekanntheit** = Seitenaufrufe
+der deutschen Wikipedia (Median der Monatsaufrufe der letzten 12 Monate, robust gegen kurze Ausschläge);
+die Anzahl der Sprachversionen gibt nur einen kleinen Bonus. Zusätzlich werden die meistaufgerufenen Artikel
+der letzten 12 Monate als Kandidaten aufgenommen, damit auch hierzulande bekannte TV-Promis dabei sind. Daraus ergeben sich drei Bekanntheitsstufen,
 einstellbar als *Extrem bekannt* (ca. 360 Personen), *Sehr bekannt* (ca. 1.040, Standard) und *Bekannt* (ca. 1.975); die unbekanntesten Personen der Wikidata-Liste sind nie im Spiel. Bekanntere Personen kommen häufiger dran.
-Heutige Promis werden bevorzugt (Geburtsjahr ab 1940), NS-Funktionäre ausgeschlossen. Den Workflow bei Bedarf
+Historische Personen werden leicht abgewertet, NS-Funktionäre ausgeschlossen. Den Workflow bei Bedarf
 erneut starten (*Actions → Personenliste erzeugen → Run workflow*), um die Liste zu aktualisieren.
 Die App merkt sich, wer zuletzt dran war: Zuerst kommen Personen, die noch nie gezeigt wurden, danach die,
 deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele Runden hinweg niemand.

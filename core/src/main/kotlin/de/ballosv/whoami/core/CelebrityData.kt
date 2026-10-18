@@ -17,8 +17,8 @@ object CelebrityData {
     private const val TIER2_SHARE = 0.2
     private const val TIER3_SHARE = 0.4
 
-    /** Bekanntheit für handgepflegte Personen, die in der erzeugten Liste fehlen. */
-    private const val CURATED_DEFAULT_POPULARITY = 120
+    /** Bekanntheit (Seitenaufrufe/Monat) für handgepflegte Personen, die in der erzeugten Liste fehlen. */
+    private const val CURATED_DEFAULT_POPULARITY = 3_000
 
     /** Stufe für handgepflegte Personen, die in der erzeugten Liste fehlen. */
     private const val CURATED_DEFAULT_TIER = 2
@@ -38,7 +38,11 @@ object CelebrityData {
         return parse(lines)
     }
 
-    /** Erwartet die TSV-Zeilen inkl. Kopfzeile, sortiert nach Bekanntheit (bekannteste zuerst). */
+    /**
+     * Erwartet die TSV-Zeilen inkl. Kopfzeile, sortiert nach Bekanntheit (bekannteste zuerst).
+     * Spalten: qid, title, first, last, areas, decades, origin, links[, views]. Bekanntheit sind die
+     * Seitenaufrufe der deutschen Wikipedia pro Monat; ältere Listen ohne diese Spalte nutzen die Sprachversionen.
+     */
     fun parse(lines: List<String>): List<Celebrity> {
         val rows = lines.drop(1).filter { it.isNotBlank() }
         val n = rows.size
@@ -56,7 +60,7 @@ object CelebrityData {
                 decades = decades,
                 origin = if (f[6] == "D") Origin.GERMAN else Origin.INTERNATIONAL,
                 qid = f[0],
-                popularity = f[7].toIntOrNull() ?: 0,
+                popularity = f.getOrNull(8)?.toIntOrNull() ?: f[7].toIntOrNull() ?: 0,
                 tier = when {
                     index < n * TIER1_SHARE -> 1
                     index < n * TIER2_SHARE -> 2
