@@ -5,6 +5,7 @@ import android.os.SystemClock
 import de.ballosv.whoami.content.CelebrityHistory
 import de.ballosv.whoami.content.ImageStore
 import de.ballosv.whoami.content.WikipediaImages
+import de.ballosv.whoami.core.CELEBRITIES
 import de.ballosv.whoami.core.GameMode
 import de.ballosv.whoami.core.GameSettings
 import de.ballosv.whoami.core.GameSnapshot
@@ -143,7 +144,9 @@ class HostSession(
                     engine.battleQuestions()
                 } else {
                     engine.setPreparingProgress(0f, "Promi-Bilder werden geladen…")
-                    WikipediaImages.loadQuestions(engine.snapshot.settings.personCount, images, celebrityHistory) { p ->
+                    val settings = engine.snapshot.settings
+                    val pool = settings.celebrityFilter.apply(CELEBRITIES)
+                    WikipediaImages.loadQuestions(pool, settings.personCount, images, celebrityHistory) { p ->
                         scope.launch { engine.setPreparingProgress(p * 0.7f, "Promi-Bilder werden geladen…") }
                     }
                 }

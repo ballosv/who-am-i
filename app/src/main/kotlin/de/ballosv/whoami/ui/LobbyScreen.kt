@@ -196,6 +196,7 @@ private fun SettingsSummary(s: GameSnapshot) {
             else -> "Promis – ${st.personCount} Personen"
         }
         Text(mode, fontWeight = FontWeight.Bold)
+        if (st.mode != GameMode.BATTLE) Text("Kategorien: ${st.celebrityFilter.describe()}", style = MaterialTheme.typography.bodyMedium)
         Text(
             "${st.tileCount} Kacheln (Abstand ${st.tileGapDp} dp) · alle ${st.revealIntervalMs} ms · ${st.answerTimeSeconds} s Antwortzeit\n" +
                 "${st.maxPoints} Punkte, −${st.pointsStepPerTile} pro Kachel, min. ${st.minPoints}\n" +
