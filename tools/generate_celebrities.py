@@ -4,7 +4,7 @@ Erzeugt aus Wikidata eine Liste bekannter Personen samt Kategorien für die App
 (core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv).
 
 Bekanntheit = wie oft der Artikel in der deutschen Wikipedia aufgerufen wird (Median der
-Monatsaufrufe der letzten 12 Monate – robust gegen kurze Ausschläge durch Skandale oder
+Tagesaufrufe der letzten 60 Tage × 30 – robust gegen kurze Ausschläge durch Skandale oder
 Todesfälle). Die Zahl der Sprachversionen gibt nur einen kleinen Bonus, historische
 Personen werden leicht abgewertet (deren Gesichter kennt man seltener).
 
@@ -41,7 +41,7 @@ TARGET = int(os.environ.get("TARGET", "4500"))
 MIN_LINKS = int(os.environ.get("MIN_LINKS", "15"))
 MAX_CANDIDATES = int(os.environ.get("MAX_CANDIDATES", "30000"))
 SPARQL_PARALLEL = 4  # Wikidata erlaubt bis zu 5 gleichzeitige Abfragen
-VIEWS_PARALLEL = 10
+VIEWS_PARALLEL = 3
 CURRENT_YEAR = datetime.date.today().year
 
 # Beruf (Wikidata) -> Bereichskürzel der App
@@ -177,14 +177,26 @@ def titles_to_qids(titles):
     return qids
 
 
-def median_views(title, months):
-    (y0, m0), (y1, m1) = months[0], months[-1]
-    article = urllib.parse.quote(title.replace(" ", "_"), safe="")
-    url = f"{PAGEVIEWS}/per-article/de.wikipedia/all-access/user/{article}/monthly/{y0}{m0:02d}0100/{y1}{m1:02d}0100"
-    data = http_json(url)
-    views = [it["views"] for it in (data or {}).get("items", [])]
-    views += [0] * (len(months) - len(views))  # Monate ohne Artikel zählen als 0
-    return int(statistics.median(views)) if views else 0
+def monthly_views(titles):
+    """
+    Seitenaufrufe für bis zu 50 Artikel auf einmal über die Wikipedia-API (Tageswerte der letzten
+    60 Tage). Ergebnis: Median der Tageswerte × 30 als Monatswert – robust gegen kurze Ausschläge.
+    Gebündelt statt einzeln abgefragt, sonst bremst Wikimedia mit HTTP 429.
+    """
+    daily = collections.defaultdict(list)
+    params = {
+        "action": "query", "format": "json", "formatversion": 2, "prop": "pageviews",
+        "pvipmetric": "pageviews", "pvipdays": 60, "titles": "|".join(titles),
+    }
+    while True:
+        data = http_json(WIKI_API + "?" + urllib.parse.urlencode(params)) or {}
+        for page in data.get("query", {}).get("pages", []):
+            daily[page["title"]].extend(v or 0 for v in (page.get("pageviews") or {}).values())
+        cont = data.get("continue")
+        if not cont:
+            break
+        params.update(cont)
+    return {t: int(statistics.median(v) * 30) if v else 0 for t, v in daily.items()}
 
 
 def era_factor(birth):
@@ -254,7 +266,8 @@ def decades(birth, death):
 def main():
     labels = occupation_labels()
     months = last_months()
-    report = [f"Zeitraum Seitenaufrufe: {months[0][0]}-{months[0][1]:02d} bis {months[-1][0]}-{months[-1][1]:02d}", "",
+    report = [f"Top-Artikel: {months[0][0]}-{months[0][1]:02d} bis {months[-1][0]}-{months[-1][1]:02d}; "
+              "Seitenaufrufe: Median der letzten 60 Tage", "",
               "## Berufe (Kontrolle der Wikidata-IDs)", ""]
     for q, code in OCCUPATIONS.items():
         report.append(f"- {q} → {code}: {labels.get(q, '??? unbekannt')}")
@@ -321,18 +334,25 @@ def main():
                 log(f"  Details {n}/{len(batches)} Gruppen, {len(people)} Personen")
     log(f"Personen mit Beruf, Bild und Namen: {len(people)}")
 
-    # Schritt 4: Seitenaufrufe der deutschen Wikipedia
-    def views(p):
-        try:
-            return p["qid"], median_views(p["title"], months)
-        except RuntimeError:
-            return p["qid"], 0
+    # Schritt 4: Seitenaufrufe der deutschen Wikipedia (je 50 Artikel pro Anfrage)
+    by_title = {p["title"]: p for p in people.values()}
+    title_batches = [list(by_title)[i:i + 50] for i in range(0, len(by_title), 50)]
 
+    def views(batch):
+        try:
+            return monthly_views(batch)
+        except RuntimeError:
+            return {}
+
+    for p in people.values():
+        p["views"] = 0
     with ThreadPoolExecutor(max_workers=VIEWS_PARALLEL) as pool:
-        for n, (qid, v) in enumerate(pool.map(views, list(people.values())), 1):
-            people[qid]["views"] = v
-            if n % 2000 == 0:
-                log(f"  Seitenaufrufe {n}/{len(people)}")
+        for n, result in enumerate(pool.map(views, title_batches), 1):
+            for title, v in result.items():
+                if title in by_title:
+                    by_title[title]["views"] = v
+            if n % 100 == 0:
+                log(f"  Seitenaufrufe {n}/{len(title_batches)} Gruppen")
 
     rows = []
     for p in people.values():
