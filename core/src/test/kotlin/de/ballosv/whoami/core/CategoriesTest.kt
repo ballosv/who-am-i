@@ -98,6 +98,24 @@ class CategoriesTest {
         assertEquals(emptyList<String>(), unrated.map { it.wikiTitle })
     }
 
+    @Test fun excludedCategoriesRemovePeople() {
+        val noSport = CelebrityFilter(excludedAreas = setOf(Area.SPORT)).apply(CELEBRITIES)
+        assertTrue(noSport.isNotEmpty())
+        assertTrue(noSport.none { Area.SPORT in it.areas })
+        assertTrue(noSport.size < count(CelebrityFilter()))
+        // Auswahl und Ausschluss kombiniert: Musiker, aber keine deutschen
+        val musicNotGerman = CelebrityFilter(areas = setOf(Area.MUSIC), excludedOrigins = setOf(Origin.GERMAN)).apply(CELEBRITIES)
+        assertTrue(musicNotGerman.isNotEmpty())
+        assertTrue(musicNotGerman.all { Area.MUSIC in it.areas && it.origin == Origin.INTERNATIONAL })
+        assertEquals(
+            "Musik · ohne Sport, 50er & früher · Bekannt",
+            CelebrityFilter(areas = setOf(Area.MUSIC), excludedAreas = setOf(Area.SPORT), excludedDecades = setOf(Decade.D1950)).describe(),
+        )
+        val settings = GameSettings(excludedAreas = setOf(Area.SPORT), areas = setOf(Area.MUSIC))
+        assertEquals(setOf(Area.SPORT), settings.celebrityFilter.excludedAreas)
+        assertTrue(settings.withAllCategories().celebrityFilter.isAll)
+    }
+
     @Test fun describeListsSelection() {
         val f = CelebrityFilter(areas = setOf(Area.MUSIC), decades = setOf(Decade.D1990, Decade.D1980))
         assertEquals("Musik · 80er, 90er · Bekannt", f.describe())
