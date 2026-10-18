@@ -197,7 +197,7 @@ private fun SettingsSummary(s: GameSnapshot) {
         }
         Text(mode, fontWeight = FontWeight.Bold)
         Text(
-            "${st.tileCount} Kacheln · alle ${st.revealIntervalMs} ms · ${st.answerTimeSeconds} s Antwortzeit\n" +
+            "${st.tileCount} Kacheln (Abstand ${st.tileGapDp} dp) · alle ${st.revealIntervalMs} ms · ${st.answerTimeSeconds} s Antwortzeit\n" +
                 "${st.maxPoints} Punkte, −${st.pointsStepPerTile} pro Kachel, min. ${st.minPoints}\n" +
                 (if (st.accuracy == de.ballosv.whoami.core.AnswerAccuracy.LAST_NAME) "Nachname genügt" else "Vor- und Nachname") +
                 " · Fehler: " + (if (st.halfPointsPenalty) "−50 %" else "−${st.fixedPenalty}"),

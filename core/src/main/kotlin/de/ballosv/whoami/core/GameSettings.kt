@@ -25,6 +25,8 @@ data class GameSettings(
     val mode: GameMode = GameMode.SINGLE,
     /** Kacheln pro Seite; das Raster hat gridSize * gridSize Kacheln. */
     val gridSize: Int = 5,
+    /** Abstand zwischen den Kacheln in dp (auf dem TV proportional skaliert). */
+    val tileGapDp: Int = 3,
     /** Anzahl Personen pro Spielrunde (im Battle-Modus: Bilder pro Spieler). */
     val personCount: Int = 5,
     val revealIntervalMs: Long = 1500,
@@ -44,6 +46,7 @@ data class GameSettings(
 
     fun normalized(): GameSettings = copy(
         gridSize = gridSize.coerceIn(MIN_GRID, MAX_GRID),
+        tileGapDp = tileGapDp.coerceIn(0, MAX_TILE_GAP_DP),
         personCount = personCount.coerceIn(1, MAX_PERSONS),
         revealIntervalMs = revealIntervalMs.coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS),
         maxPoints = maxPoints.coerceIn(10, 100_000),
@@ -56,6 +59,7 @@ data class GameSettings(
     companion object {
         const val MIN_GRID = 2
         const val MAX_GRID = 10
+        const val MAX_TILE_GAP_DP = 16
         const val MAX_PERSONS = 50
         const val MIN_INTERVAL_MS = 200L
         const val MAX_INTERVAL_MS = 20_000L
