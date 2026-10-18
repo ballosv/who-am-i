@@ -476,3 +476,38 @@ val CURATED_CELEBRITIES: List<Celebrity> = listOf(
     p("Victoria", "Beckham", "F M", "90 00 10", INT),
     p("Donatella", "Versace", "F", "90 00 10", INT),
 )
+
+/**
+ * Bewertung (5 = kennt praktisch jeder, 4 = sehr bekannt, 3 = bekannt) für handgepflegte Personen,
+ * die nicht in der erzeugten Liste stehen; Schlüssel ist der Wikipedia-Artikel.
+ */
+val CURATED_RATINGS: Map<String, Int> = mapOf(
+    // Bewertung 5
+    "Angelina Jolie" to 5, "Tom Cruise" to 5, "Arnold Schwarzenegger" to 5, "Michael Jackson" to 5,
+    "Lionel Messi" to 5, "Mahatma Gandhi" to 5, "Pablo Picasso" to 5, "Steve Jobs" to 5,
+    "Lady Gaga" to 5, "Rihanna" to 5, "Beyoncé" to 5, "Justin Bieber" to 5,
+    "Shakira" to 5, "Bruce Willis" to 5, "Barbara Schöneberger" to 5, "Diana, Princess of Wales" to 5,
+    "Karl Marx" to 5, "Anne Frank" to 5, "Sophie Scholl" to 5, "Che Guevara" to 5,
+    "William Shakespeare" to 5, "Charles Darwin" to 5, "Marie Curie" to 5, "Sigmund Freud" to 5,
+    "Hillary Clinton" to 5, "Emmanuel Macron" to 5, "Greta Thunberg" to 5, "Roger Federer" to 5,
+    "Eminem" to 5, "Bob Dylan" to 5, "Karl Lauterbach" to 5, "Harald Schmidt" to 5,
+    "Stephen King" to 5, "Ed Sheeran" to 5, "Emma Watson" to 5, "Scarlett Johansson" to 5,
+    "Robert Downey Jr." to 5, "Iris Berben" to 5, "Mariah Carey" to 5, "Max Verstappen" to 5,
+    "Katarina Witt" to 5, "J. K. Rowling" to 5, "Robert Lewandowski" to 5, "Snoop Dogg" to 5,
+    "Kanye West" to 5, "Ringo Starr" to 5, "Christina Aguilera" to 5, "Dolly Parton" to 5,
+    "Quentin Tarantino" to 5,
+    // Bewertung 4
+    "Jan Böhmermann" to 4, "Anne Hathaway" to 4, "Kate Winslet" to 4, "Hugh Jackman" to 4,
+    "Chris Hemsworth" to 4, "Zendaya" to 4, "Emma Stone" to 4, "Robert Pattinson" to 4,
+    "Mila Kunis" to 4, "James Cameron" to 4, "Mario Barth" to 4, "Oliver Pocher" to 4,
+    "Anne Will" to 4, "Sandra Maischberger" to 4, "Daniela Katzenberger" to 4, "Michael Mittermeier" to 4,
+    "Ariana Grande" to 4, "Miley Cyrus" to 4, "Bruno Mars" to 4, "Ozzy Osbourne" to 4,
+    "Dua Lipa" to 4, "David Guetta" to 4, "Alicia Keys" to 4, "Justin Timberlake" to 4,
+    "Marius Müller-Westernhagen" to 4, "Alexander Zverev" to 4, "Kamala Harris" to 4, "Ranga Yogeshwar" to 4,
+    "Harald Lesch" to 4, "Wolfgang Joop" to 4, "Guido Maria Kretschmer" to 4, "Felix Neureuther" to 4,
+    "Simone Biles" to 4, "Fabian Hambüchen" to 4, "Lena Gercke" to 4, "Tim Bendzko" to 4,
+    "Jan Delay" to 4, "Chris Pratt" to 4,
+    // Bewertung 3
+    "Olivia Rodrigo" to 3, "Post Malone" to 3, "Andreas Bourani" to 3, "Kim Petras" to 3,
+    "Laura Dahlmeier" to 3, "Jacinda Ardern" to 3, "Jil Sander" to 3,
+)

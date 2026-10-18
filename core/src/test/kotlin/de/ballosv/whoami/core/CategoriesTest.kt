@@ -38,8 +38,8 @@ class CategoriesTest {
         val very = count(CelebrityFilter(fame = FameLevel.VERY_FAMOUS))
         val extreme = count(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS))
         assertTrue("$extreme < $very < $famous", extreme in 100 until very && very < famous)
-        // Die unbekanntesten Personen sind in keiner Stufe dabei
-        assertTrue(famous < CELEBRITIES.size)
+        // In der Liste stehen nur bewertete Personen; „Bekannt“ umfasst alle
+        assertEquals(CELEBRITIES.size, famous)
         assertTrue(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS).apply(CELEBRITIES).any { it.lastName == "Merkel" })
         assertEquals("Alle Kategorien · Bekannt", CelebrityFilter(fame = FameLevel.FAMOUS).describe())
         assertEquals(FameLevel.VERY_FAMOUS, GameSettings().fame)
@@ -52,8 +52,8 @@ class CategoriesTest {
 
     @Test fun generatedListIsParsedTieredAndMerged() {
         val lines = listOf(
-            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks",
-            "Q567\tAngela Merkel\tAngela\tMerkel\tP\t00 10\tD\t250",
+            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks\tviews",
+            "Q567\tAngela Merkel\tAngela\tMerkel\tP\t00 10\tD\t220\t250",
             "Q1\tNeue Person\tNeue\tPerson\tA M\t90 00\tI\t100",
             "Q2\tZweite Person\tZweite\tPerson\tS H\t50\tD\t60",
             "Q3\tKaputt\t\t\t\t\tI\t1",
@@ -70,6 +70,32 @@ class CategoriesTest {
         assertEquals("Q567", merkel[0].qid)
         assertEquals(250, merkel[0].popularity)
         assertEquals(CURATED_CELEBRITIES.size + 2, merged.size)
+    }
+
+    @Test fun ratingDecidesTierAndWeight() {
+        val lines = listOf(
+            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks\tviews\trating",
+            "Q1\tEins\tA\tEins\tP\t50\tD\t20\t90000\t3",
+            "Q2\tZwei\tB\tZwei\tP\t50\tD\t20\t10\t5",
+            "Q3\tDrei\tC\tDrei\tP\t50\tD\t20\t10\t4",
+        )
+        val generated = CelebrityData.parse(lines)
+        // Seitenaufrufe zählen nicht mehr: die Bewertung bestimmt Stufe und Gewicht
+        assertEquals(listOf(3, 1, 2), generated.map { it.tier })
+        assertTrue(generated[1].popularity > generated[2].popularity)
+        assertTrue(generated[2].popularity > generated[0].popularity)
+        val curated = listOf(Celebrity("Willy", "Brandt", "Willy Brandt", setOf(Area.POLITICS), setOf(Decade.D1970), Origin.GERMAN))
+        assertEquals(1, CelebrityData.merge(curated, emptyList(), mapOf("Willy Brandt" to 5))[0].tier)
+    }
+
+    @Test fun everyCuratedPersonIsRated() {
+        val generated = CelebrityData.loadGenerated()
+        val titles = generated.map { it.wikiTitle }.toSet()
+        val names = generated.map { it.displayName.lowercase() }.toSet()
+        val unrated = CURATED_CELEBRITIES.filter {
+            it.wikiTitle !in titles && it.displayName.lowercase() !in names && it.wikiTitle !in CURATED_RATINGS
+        }
+        assertEquals(emptyList<String>(), unrated.map { it.wikiTitle })
     }
 
     @Test fun describeListsSelection() {
