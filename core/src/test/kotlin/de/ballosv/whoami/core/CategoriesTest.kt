@@ -72,6 +72,32 @@ class CategoriesTest {
         assertEquals(CURATED_CELEBRITIES.size + 2, merged.size)
     }
 
+    @Test fun ratingDecidesTierAndWeight() {
+        val lines = listOf(
+            "qid\ttitle\tfirst\tlast\tareas\tdecades\torigin\tlinks\tviews\trating",
+            "Q1\tEins\tA\tEins\tP\t50\tD\t20\t90000\t3",
+            "Q2\tZwei\tB\tZwei\tP\t50\tD\t20\t10\t5",
+            "Q3\tDrei\tC\tDrei\tP\t50\tD\t20\t10\t4",
+        )
+        val generated = CelebrityData.parse(lines)
+        // Seitenaufrufe zählen nicht mehr: die Bewertung bestimmt Stufe und Gewicht
+        assertEquals(listOf(3, 1, 2), generated.map { it.tier })
+        assertTrue(generated[1].popularity > generated[2].popularity)
+        assertTrue(generated[2].popularity > generated[0].popularity)
+        val curated = listOf(Celebrity("Willy", "Brandt", "Willy Brandt", setOf(Area.POLITICS), setOf(Decade.D1970), Origin.GERMAN))
+        assertEquals(1, CelebrityData.merge(curated, emptyList(), mapOf("Willy Brandt" to 5))[0].tier)
+    }
+
+    @Test fun everyCuratedPersonIsRated() {
+        val generated = CelebrityData.loadGenerated()
+        val titles = generated.map { it.wikiTitle }.toSet()
+        val names = generated.map { it.displayName.lowercase() }.toSet()
+        val unrated = CURATED_CELEBRITIES.filter {
+            it.wikiTitle !in titles && it.displayName.lowercase() !in names && it.wikiTitle !in CURATED_RATINGS
+        }
+        assertEquals(emptyList<String>(), unrated.map { it.wikiTitle })
+    }
+
     @Test fun describeListsSelection() {
         val f = CelebrityFilter(areas = setOf(Area.MUSIC), decades = setOf(Decade.D1990, Decade.D1980))
         assertEquals("Musik · 80er, 90er · Bekannt", f.describe())

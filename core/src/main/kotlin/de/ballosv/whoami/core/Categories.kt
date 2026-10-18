@@ -53,7 +53,7 @@ data class Celebrity(
     val origin: Origin,
     /** Wikidata-ID, falls bekannt (sonst ermittelt die App sie über den Artikel). */
     val qid: String? = null,
-    /** Bekanntheit (Anzahl Wikipedia-Sprachversionen); bekanntere Personen kommen häufiger dran. */
+    /** Gewicht nach Bekanntheit (aus der Bewertung); bekanntere Personen kommen häufiger dran. */
     val popularity: Int = 0,
     /** Bekanntheitsstufe 1–3, siehe [FameLevel]; Stufe 4 = zu unbekannt, nie im Spiel. */
     val tier: Int = 1,

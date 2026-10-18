@@ -15,6 +15,13 @@ Personen unter den meistaufgerufenen Artikeln der deutschen Wikipedia der letzte
 Bereich aus dem Beruf (P106), Herkunft aus der Staatsangehörigkeit (P27), Jahrzehnte
 näherungsweise aus Geburts-/Sterbejahr. Nur Personen mit Bild (P18) und deutschem Artikel.
 
+Bewertung: Wie bekannt eine Person allgemein in Deutschland ist (5 = kennt praktisch jeder,
+4 = sehr bekannt, 3 = bekannt), wurde von einer KI vergeben und steht in der Spalte „rating“ der
+Ausgabedatei. Seitenaufrufe spiegeln eher die aktuelle Nachrichtenlage wider (Willy Brandt wird
+heute selten gesucht, kennt aber fast jeder) und dienen deshalb nur noch zur Vorauswahl. Beim
+erneuten Erzeugen bleiben die Bewertungen erhalten; in die App kommen nur bewertete Personen.
+Noch unbewertete Kandidaten listet der Bericht auf, damit sie nachbewertet werden können.
+
 Läuft in GitHub Actions (Workflow „Personenliste erzeugen“), weil Wikidata/Wikimedia dort erreichbar sind.
 """
 import collections
@@ -37,13 +44,13 @@ ENDPOINT = "https://query.wikidata.org/sparql"
 WIKI_API = "https://de.wikipedia.org/w/api.php"
 PAGEVIEWS = "https://wikimedia.org/api/rest_v1/metrics/pageviews"
 OUT = "core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv"
-TARGET = int(os.environ.get("TARGET", "4500"))
 # Bei weniger Sprachversionen wird die Politiker-Abfrage so groß, dass Wikidata sie abschneidet.
 MIN_LINKS = int(os.environ.get("MIN_LINKS", "20"))
 MAX_CANDIDATES = int(os.environ.get("MAX_CANDIDATES", "30000"))
 SPARQL_PARALLEL = 4  # Wikidata erlaubt bis zu 5 gleichzeitige Abfragen
 VIEWS_PARALLEL = 3
 MONTHLY_PARALLEL = 2
+UNRATED_REPORT = int(os.environ.get("UNRATED_REPORT", "500"))
 REFINE = int(os.environ.get("REFINE", "9000"))  # so viele Kandidaten bekommen den 12-Monats-Wert
 CURRENT_YEAR = datetime.date.today().year
 
@@ -280,7 +287,17 @@ def decades(birth, death):
     return result
 
 
+def existing_rows():
+    """Bisherige Ausgabe nach Wikidata-ID, um Bewertungen und von Hand korrigierte Namen zu behalten."""
+    try:
+        with open(OUT, encoding="utf-8", newline="") as f:
+            return {r["qid"]: r for r in csv.DictReader(f, delimiter="\t") if r.get("rating")}
+    except FileNotFoundError:
+        return {}
+
+
 def main():
+    rated = existing_rows()
     labels = occupation_labels()
     months = last_months()
     report = [f"Top-Artikel: {months[0][0]}-{months[0][1]:02d} bis {months[-1][0]}-{months[-1][1]:02d}; "
@@ -415,33 +432,38 @@ def main():
             "links": p["links"], "views": p["views"], "score": score(p["views"], p["links"], p["birth"]),
         })
     rows.sort(key=lambda r: -r["score"])
-    rows = rows[:TARGET]
+    unrated = [r for r in rows if r["qid"] not in rated][:UNRATED_REPORT]
+    found = {r["qid"]: r for r in rows if r["qid"] in rated}
+    result = []
+    for qid, old in rated.items():
+        r = found.get(qid)
+        if r is None:
+            r = {**old, "links": int(old["links"] or 0), "views": int(old["views"] or 0)}  # nicht mehr gefunden: behalten
+        # Namen nicht überschreiben – sie sind teils von Hand korrigiert (Meghan Markle, Malcolm X …)
+        r.update(first=old["first"], last=old["last"], rating=int(old["rating"]))
+        result.append(r)
+    result.sort(key=lambda r: (-r["rating"], -r["views"]))
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f, delimiter="\t", lineterminator="\n")
-        w.writerow(["qid", "title", "first", "last", "areas", "decades", "origin", "links", "views"])
-        for r in rows:
-            w.writerow([r["qid"], r["title"], r["first"], r["last"], r["areas"], r["decades"], r["origin"], r["links"], r["views"]])
+        w.writerow(["qid", "title", "first", "last", "areas", "decades", "origin", "links", "views", "rating"])
+        for r in result:
+            w.writerow([r["qid"], r["title"], r["first"], r["last"], r["areas"], r["decades"], r["origin"],
+                        r["links"], r["views"], r["rating"]])
 
-    area_count = collections.Counter(a for r in rows for a in r["areas"].split())
-    dec_count = collections.Counter(d for r in rows for d in r["decades"].split())
-    origin_count = collections.Counter(r["origin"] for r in rows)
-    report += ["", f"## Ergebnis: {len(rows)} Personen (von {len(people)} mit Beruf und Bild)", "",
+    area_count = collections.Counter(a for r in result for a in r["areas"].split())
+    dec_count = collections.Counter(d for r in result for d in r["decades"].split())
+    origin_count = collections.Counter(r["origin"] for r in result)
+    rating_count = collections.Counter(r["rating"] for r in result)
+    report += ["", f"## Ergebnis: {len(result)} bewertete Personen ({len(found)} wiedergefunden, "
+               f"{len(people)} Kandidaten mit Beruf und Bild)", "",
+               f"- Bewertungen: {dict(sorted(rating_count.items(), reverse=True))}",
                f"- Bereiche: {dict(sorted(area_count.items()))}",
                f"- Jahrzehnte: {dict(sorted(dec_count.items()))}",
-               f"- Herkunft: {dict(origin_count)}",
-               f"- Mindest-Aufrufe/Monat im Ergebnis: {min((r['views'] for r in rows), default=0)}", ""]
-    # Stufengrenzen wie in der App (CelebrityData): 8 % / 20 % / 40 %
-    n = len(rows)
-    for name, share in [("Extrem bekannt", 0.08), ("Sehr bekannt", 0.2), ("Bekannt", 0.4)]:
-        k = int(n * share)
-        edge = rows[max(0, k - 12):k]
-        report.append(f"### Untergrenze „{name}“ (Platz {k})")
-        report.append(", ".join(f"{r['first']} {r['last']} ({r['views']}/Monat)".strip() for r in edge))
-        report.append("")
-    report.append("### Top 40")
-    report.append(", ".join(f"{r['first']} {r['last']}".strip() for r in rows[:40]))
+               f"- Herkunft: {dict(origin_count)}", "",
+               f"### Noch unbewertet (die {len(unrated)} aussichtsreichsten)",
+               ", ".join(f"{r['qid']} {r['first']} {r['last']}".strip() for r in unrated), ""]
     text = "\n".join(report)
     print(text)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
