@@ -238,14 +238,15 @@ private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text("Bekanntheit", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Choice(options = FameLevel.entries.map { it.label to it }, selected = s.fame) { onChange(s.copy(fame = it)) }
+        // Von „Bekannt“ (meiste Personen) bis „Extrem bekannt“ (leichteste Runden)
+        Choice(options = FameLevel.entries.reversed().map { it.label to it }, selected = s.fame) { onChange(s.copy(fame = it)) }
         ChipGroup("Bereich", Area.entries, s.areas, { it.label }) { onChange(s.copy(areas = it)) }
         ChipGroup("Jahrzehnt", Decade.entries, s.decades, { it.label }) { onChange(s.copy(decades = it)) }
         ChipGroup("Herkunft", Origin.entries, s.origins, { it.label }) { onChange(s.copy(origins = it)) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when {
-                    s.celebrityFilter.isAll && s.fame == FameLevel.ALL -> "Alle $available Personen"
+                    s.celebrityFilter.isAll -> "$available Personen (${s.fame.label})"
                     available == 1 -> "1 Person passt zur Auswahl"
                     else -> "$available Personen passen zur Auswahl"
                 },

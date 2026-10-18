@@ -9,12 +9,19 @@ val CELEBRITIES: List<Celebrity> by lazy { CelebrityData.merge(CURATED_CELEBRITI
 object CelebrityData {
     private const val RESOURCE = "celebrities_wikidata.tsv"
 
-    /** Anteil der erzeugten Personen in Stufe 1 bzw. bis Stufe 2 (nach Bekanntheit sortiert). */
-    private const val TIER1_SHARE = 0.2
-    private const val TIER2_SHARE = 0.55
+    /**
+     * Stufengrenzen als Anteil der erzeugten Liste (nach Bekanntheit sortiert):
+     * Stufe 1 extrem bekannt, 2 sehr bekannt, 3 bekannt, darüber hinaus zu unbekannt (Stufe 4).
+     */
+    private const val TIER1_SHARE = 0.08
+    private const val TIER2_SHARE = 0.2
+    private const val TIER3_SHARE = 0.4
 
     /** Bekanntheit für handgepflegte Personen, die in der erzeugten Liste fehlen. */
     private const val CURATED_DEFAULT_POPULARITY = 120
+
+    /** Stufe für handgepflegte Personen, die in der erzeugten Liste fehlen. */
+    private const val CURATED_DEFAULT_TIER = 2
 
     private val AREA_CODES = mapOf(
         "A" to Area.ACTING, "M" to Area.MUSIC, "T" to Area.TV, "S" to Area.SPORT, "P" to Area.POLITICS,
@@ -53,15 +60,17 @@ object CelebrityData {
                 tier = when {
                     index < n * TIER1_SHARE -> 1
                     index < n * TIER2_SHARE -> 2
-                    else -> 3
+                    index < n * TIER3_SHARE -> 3
+                    else -> 4
                 },
             )
         }
     }
 
     /**
-     * Handgepflegte Einträge haben Vorrang (genauere Kategorien, Stufe 1); von der erzeugten Liste
-     * übernehmen sie Wikidata-ID und Bekanntheit. Doppelte Personen (gleicher Artikel oder Name) entfallen.
+     * Handgepflegte Einträge haben Vorrang (genauere Kategorien); von der erzeugten Liste übernehmen
+     * sie Wikidata-ID, Bekanntheit und Stufe – höchstens aber Stufe 3, denn von Hand gewählte Personen
+     * sind nie „zu unbekannt“. Doppelte Personen (gleicher Artikel oder Name) entfallen.
      */
     fun merge(curated: List<Celebrity>, generated: List<Celebrity>): List<Celebrity> {
         val byTitle = generated.associateBy { it.wikiTitle }
@@ -70,7 +79,11 @@ object CelebrityData {
         val enriched = curated.map { c ->
             val g = byTitle[c.wikiTitle] ?: byName[c.displayName.lowercase()]
             if (g != null) matched += g.wikiTitle
-            c.copy(qid = g?.qid, popularity = g?.popularity ?: CURATED_DEFAULT_POPULARITY, tier = 1)
+            c.copy(
+                qid = g?.qid,
+                popularity = g?.popularity ?: CURATED_DEFAULT_POPULARITY,
+                tier = g?.tier?.coerceAtMost(3) ?: CURATED_DEFAULT_TIER,
+            )
         }
         val curatedNames = curated.map { it.displayName.lowercase() }.toSet()
         val curatedTitles = curated.map { it.wikiTitle }.toSet()

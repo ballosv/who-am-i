@@ -9,8 +9,8 @@ class CategoriesTest {
 
     @Test fun emptyFilterMeansAll() {
         assertTrue(CelebrityFilter().isAll)
-        assertEquals(CELEBRITIES.size, count(CelebrityFilter()))
-        assertEquals("Alle Kategorien", CelebrityFilter().describe())
+        assertEquals(CELEBRITIES.count { it.tier <= 3 }, count(CelebrityFilter()))
+        assertEquals("Alle Kategorien · Bekannt", CelebrityFilter().describe())
     }
 
     @Test fun everySingleCategoryHasEnoughPeople() {
@@ -34,13 +34,20 @@ class CategoriesTest {
     }
 
     @Test fun fameLevelsNarrowTheSelection() {
-        val all = count(CelebrityFilter(fame = FameLevel.ALL))
         val famous = count(CelebrityFilter(fame = FameLevel.FAMOUS))
-        val veryFamous = count(CelebrityFilter(fame = FameLevel.VERY_FAMOUS))
-        assertTrue(veryFamous in 1..famous && famous <= all)
-        // Handgepflegte Personen gelten immer als sehr bekannt
-        assertTrue(CelebrityFilter(fame = FameLevel.VERY_FAMOUS).apply(CELEBRITIES).any { it.lastName == "Merkel" })
+        val very = count(CelebrityFilter(fame = FameLevel.VERY_FAMOUS))
+        val extreme = count(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS))
+        assertTrue("$extreme < $very < $famous", extreme in 100 until very && very < famous)
+        // Die unbekanntesten Personen sind in keiner Stufe dabei
+        assertTrue(famous < CELEBRITIES.size)
+        assertTrue(CelebrityFilter(fame = FameLevel.EXTREMELY_FAMOUS).apply(CELEBRITIES).any { it.lastName == "Merkel" })
         assertEquals("Alle Kategorien · Bekannt", CelebrityFilter(fame = FameLevel.FAMOUS).describe())
+        assertEquals(FameLevel.VERY_FAMOUS, GameSettings().fame)
+    }
+
+    @Test fun oldSavedFameValueFallsBackToDefault() {
+        val old = """{"mode":"SINGLE","fame":"ALL"}"""
+        assertEquals(FameLevel.VERY_FAMOUS, Message.json.decodeFromString(GameSettings.serializer(), old).fame)
     }
 
     @Test fun generatedListIsParsedTieredAndMerged() {
@@ -53,8 +60,8 @@ class CategoriesTest {
         )
         val generated = CelebrityData.parse(lines)
         assertEquals(3, generated.size)
-        assertEquals(1, generated[0].tier)
-        assertEquals(2, generated[2].tier) // Platz 3 von 4 Zeilen: unter 55 %
+        assertEquals(1, generated[0].tier) // Platz 1 von 4: oberste 8 %
+        assertEquals(4, generated[2].tier) // Platz 3 von 4: über 40 % -> zu unbekannt
         assertEquals(setOf(Area.ACTING, Area.MUSIC), generated[1].areas)
         val merged = CelebrityData.merge(CURATED_CELEBRITIES, generated)
         // Merkel nur einmal, mit Wikidata-ID und Bekanntheit aus der erzeugten Liste
@@ -67,7 +74,7 @@ class CategoriesTest {
 
     @Test fun describeListsSelection() {
         val f = CelebrityFilter(areas = setOf(Area.MUSIC), decades = setOf(Decade.D1990, Decade.D1980))
-        assertEquals("Musik · 80er, 90er", f.describe())
+        assertEquals("Musik · 80er, 90er · Bekannt", f.describe())
     }
 
     @Test fun listHasNoDuplicatesAndEveryoneIsTagged() {
@@ -79,6 +86,6 @@ class CategoriesTest {
         val s = GameSettings(areas = setOf(Area.SPORT), decades = setOf(Decade.D2020), origins = setOf(Origin.GERMAN))
         val decoded = Message.json.decodeFromString(GameSettings.serializer(), Message.json.encodeToString(GameSettings.serializer(), s))
         assertEquals(s.celebrityFilter, decoded.celebrityFilter)
-        assertEquals(FameLevel.FAMOUS, GameSettings().fame)
+        assertEquals(FameLevel.VERY_FAMOUS, GameSettings().fame)
     }
 }

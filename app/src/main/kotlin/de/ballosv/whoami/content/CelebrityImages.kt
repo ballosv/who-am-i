@@ -18,6 +18,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.net.URLEncoder
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Lädt Porträts für die Promi-Runden:
@@ -46,7 +47,7 @@ object CelebrityImages {
         store: ImageStore,
         history: CelebrityHistory,
         photos: PhotoHistory,
-        progress: (Float) -> Unit,
+        progress: (found: Int, total: Int) -> Unit,
     ): List<Question> = withContext(Dispatchers.IO) {
         if (pool.isEmpty()) throw IOException("Zu den gewählten Kategorien gibt es keine Personen.")
         // Bekanntere Personen kommen häufiger dran, aber jede irgendwann.
@@ -58,6 +59,9 @@ object CelebrityImages {
         val skipped = mutableListOf<String>()
         var lastError: Exception? = null
         val limit = Semaphore(PARALLEL)
+        // Fortschritt laufend melden, sobald ein Foto gefunden ist (nicht erst am Ende einer Gruppe)
+        val found = AtomicInteger(0)
+        progress(0, count)
 
         while (result.size < count && candidates.isNotEmpty()) {
             val missing = count - result.size
@@ -73,7 +77,9 @@ object CelebrityImages {
                     async {
                         limit.withPermit {
                             celebrity to try {
-                                portraitFor(celebrity, articles[celebrity.wikiTitle], photos)
+                                portraitFor(celebrity, articles[celebrity.wikiTitle], photos)?.also {
+                                    progress(minOf(found.incrementAndGet(), count), count)
+                                }
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -96,12 +102,12 @@ object CelebrityImages {
                 result += Question(id, celebrity.firstName, celebrity.lastName, credit = portrait.credit)
                 used += celebrity.wikiTitle
                 photos.record(celebrity.wikiTitle, portrait.file)
-                progress(result.size.toFloat() / count)
             }
         }
         if (result.isEmpty()) {
             throw IOException("Promi-Bilder konnten nicht geladen werden. Besteht eine Internetverbindung?", lastError)
         }
+        found.set(result.size)
         history.record(skipped + used)
         result.shuffled()
     }
@@ -115,14 +121,18 @@ object CelebrityImages {
                 .sortedBy { it.file in seen }
             for (photo in candidates.take(MAX_TRIES_PER_PERSON)) {
                 val bitmap = Http.get(photo.url)?.let(Images::decodeSampled) ?: continue
-                val jpeg = FaceCropper.portrait(bitmap) ?: continue
-                return Portrait(jpeg, photo.credit, photo.file)
+                when (val face = FaceCropper.portrait(bitmap)) {
+                    is FaceCropper.Result.Portrait -> return Portrait(face.jpeg, photo.credit, photo.file)
+                    FaceCropper.Result.NoSingleFace -> continue
+                    // Ohne Gesichtserkennung (Modell lädt noch) das Foto wie früher zuschneiden
+                    FaceCropper.Result.Unavailable -> return Portrait(Images.toSquareJpeg(bitmap), photo.credit, photo.file)
+                }
             }
         }
         // Rückfall: Artikelbild der Wikipedia (auch Gemälde, daher notfalls ohne Gesichtserkennung zuschneiden)
         val thumb = article?.thumbUrl ?: return null
         val bitmap = Http.get(thumb)?.let(Images::decodeSampled) ?: return null
-        val jpeg = FaceCropper.portrait(bitmap) ?: Images.toSquareJpeg(bitmap)
+        val jpeg = (FaceCropper.portrait(bitmap) as? FaceCropper.Result.Portrait)?.jpeg ?: Images.toSquareJpeg(bitmap)
         val credit = article.imageName?.let { runCatching { CommonsPhotos.creditFor(it) }.getOrNull() } ?: "Bild: Wikipedia"
         return Portrait(jpeg, credit, article.imageName ?: thumb)
     }
