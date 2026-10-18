@@ -51,7 +51,7 @@ def articles(titles):
         batch = titles[i:i + 50]
         q = get(WIKI, {
             "action": "query", "format": "json", "formatversion": 2, "redirects": 1,
-            "prop": "pageimages|pageprops", "ppprop": "wikibase_item", "piprop": "thumbnail|name",
+            "prop": "pageimages|pageprops", "ppprop": "wikibase_item|disambiguation", "piprop": "thumbnail|name",
             "pithumbsize": 960, "titles": "|".join(batch),
         })["query"]
         mapping = {x["from"]: x["to"] for x in q.get("normalized", []) + q.get("redirects", [])}
@@ -89,13 +89,16 @@ def main():
     arts = articles(titles)
     missing = [t for t, p in arts.items() if p is None or p.get("missing")]
     no_qid = [t for t, p in arts.items() if p and not p.get("missing") and not p.get("pageprops", {}).get("wikibase_item")]
+    disambig = [t for t, p in arts.items() if p and "disambiguation" in p.get("pageprops", {})]
     no_image = [t for t, p in arts.items() if p and not p.get("missing") and "thumbnail" not in p]
     out.append(f"- Artikel nicht gefunden: {len(missing)} {missing}")
     out.append(f"- Ohne Wikidata-ID: {len(no_qid)} {no_qid}")
+    out.append(f"- Begriffsklärungsseiten (falsche Person!): {len(disambig)} {disambig}")
     out.append(f"- Ohne Artikelbild: {len(no_image)} {no_image}\n")
 
     sample_size = int(os.environ.get("SAMPLE", "25"))
-    with_qid = [(t, p["pageprops"]["wikibase_item"]) for t, p in arts.items() if p and p.get("pageprops", {}).get("wikibase_item")]
+    with_qid = [(t, p["pageprops"]["wikibase_item"]) for t, p in arts.items()
+                if p and p.get("pageprops", {}).get("wikibase_item") and t not in disambig]
     random.seed(1)
     sample = random.sample(with_qid, min(sample_size, len(with_qid)))
     out.append(f"## Commons-Fotos (Stichprobe {len(sample)})\n")
