@@ -45,7 +45,7 @@ data class GameSettings(
     val areas: Set<Area> = emptySet(),
     val decades: Set<Decade> = emptySet(),
     val origins: Set<Origin> = emptySet(),
-    val fame: FameLevel = FameLevel.FAMOUS,
+    val fame: FameLevel = FameLevel.VERY_FAMOUS,
 ) {
     val tileCount: Int get() = gridSize * gridSize
 

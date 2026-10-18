@@ -55,5 +55,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.play.services.nearby)
     implementation(libs.mlkit.face.detection)
+    implementation(libs.play.services.base)
     debugImplementation(libs.androidx.ui.tooling)
 }

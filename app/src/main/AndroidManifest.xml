@@ -65,6 +65,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Modell der Gesichtserkennung über die Google-Play-Dienste laden (nicht in der APK) -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="face" />
+
         <service
             android:name=".invite.InviteListenerService"
             android:exported="false"

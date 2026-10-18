@@ -145,11 +145,18 @@ class HostSession(
                 val questions = if (mode == GameMode.BATTLE) {
                     engine.battleQuestions()
                 } else {
-                    engine.setPreparingProgress(0f, "Promi-Bilder werden geladen…")
+                    engine.setPreparingProgress(0f, "Promi-Fotos werden gesucht …")
                     val settings = engine.snapshot.settings
                     val pool = settings.celebrityFilter.apply(CELEBRITIES)
-                    CelebrityImages.loadQuestions(pool, settings.personCount, images, celebrityHistory, photoHistory) { p ->
-                        scope.launch { engine.setPreparingProgress(p * 0.7f, "Promi-Bilder werden geladen…") }
+                    // Ohne Mitspieler gibt es nichts zu übertragen: dann reicht der Balken bis ganz rechts.
+                    val share = if (nearby?.peers.isNullOrEmpty()) 1f else 0.7f
+                    CelebrityImages.loadQuestions(pool, settings.personCount, images, celebrityHistory, photoHistory) { found, total ->
+                        scope.launch {
+                            engine.setPreparingProgress(
+                                share * found / total,
+                                "Promi-Fotos werden gesucht … $found von $total gefunden",
+                            )
+                        }
                     }
                 }
                 distribute(questions)

@@ -7,6 +7,7 @@ import android.os.VibratorManager
 import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -257,7 +258,13 @@ private fun FullscreenOverlay(s: GameSnapshot, clock: State<Long>) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(max = 320.dp).padding(24.dp)) {
                 Text(s.message ?: "Spiel wird vorbereitet …", textAlign = TextAlign.Center, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(16.dp))
-                LinearProgressIndicator(progress = { s.preparingProgress }, modifier = Modifier.fillMaxWidth())
+                // Weich wachsender Balken; solange noch nichts gefunden ist, ein laufender Balken als Lebenszeichen
+                val progress by animateFloatAsState(s.preparingProgress, tween(600), label = "preparing")
+                if (s.preparingProgress <= 0f) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                }
             }
         }
     }
