@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.sqrt
 
 /**
  * Lädt Porträts für die Promi-Runden:
@@ -51,7 +52,8 @@ object CelebrityImages {
     ): List<Question> = withContext(Dispatchers.IO) {
         if (pool.isEmpty()) throw IOException("Zu den gewählten Kategorien gibt es keine Personen.")
         // Bekanntere Personen kommen häufiger dran, aber jede irgendwann.
-        val candidates = Freshness.order(pool, history.recent(), weight = { it.popularity.toDouble().coerceAtLeast(1.0) }) { it.wikiTitle }
+        // Wurzel dämpft die riesigen Unterschiede bei den Seitenaufrufen (Superstars würden sonst alles verdrängen).
+        val candidates = Freshness.order(pool, history.recent(), weight = { sqrt(it.popularity.toDouble().coerceAtLeast(1.0)) }) { it.wikiTitle }
             .toMutableList()
         val result = mutableListOf<Question>()
         val used = mutableListOf<String>()
