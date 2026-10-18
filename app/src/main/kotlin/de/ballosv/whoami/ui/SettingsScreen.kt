@@ -10,6 +10,7 @@ import androidx.compose.material3.TextButton
 import de.ballosv.whoami.core.Area
 import de.ballosv.whoami.core.CELEBRITIES
 import de.ballosv.whoami.core.Decade
+import de.ballosv.whoami.core.FameLevel
 import de.ballosv.whoami.core.Origin
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
@@ -228,7 +229,7 @@ private fun TileGapPreview(gridSize: Int, gapDp: Int, modifier: Modifier = Modif
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
-    val available = remember(s.areas, s.decades, s.origins) { s.celebrityFilter.apply(CELEBRITIES).size }
+    val available = remember(s.areas, s.decades, s.origins, s.fame) { s.celebrityFilter.apply(CELEBRITIES).size }
     SectionCard("Kategorien") {
         Text(
             "Ohne Auswahl sind alle Personen dabei. Mehrere Kategorien einer Gruppe werden kombiniert, " +
@@ -236,13 +237,15 @@ private fun CategoryPicker(s: GameSettings, onChange: (GameSettings) -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text("Bekanntheit", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Choice(options = FameLevel.entries.map { it.label to it }, selected = s.fame) { onChange(s.copy(fame = it)) }
         ChipGroup("Bereich", Area.entries, s.areas, { it.label }) { onChange(s.copy(areas = it)) }
         ChipGroup("Jahrzehnt", Decade.entries, s.decades, { it.label }) { onChange(s.copy(decades = it)) }
         ChipGroup("Herkunft", Origin.entries, s.origins, { it.label }) { onChange(s.copy(origins = it)) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when {
-                    s.celebrityFilter.isAll -> "Alle $available Personen"
+                    s.celebrityFilter.isAll && s.fame == FameLevel.ALL -> "Alle $available Personen"
                     available == 1 -> "1 Person passt zur Auswahl"
                     else -> "$available Personen passen zur Auswahl"
                 },

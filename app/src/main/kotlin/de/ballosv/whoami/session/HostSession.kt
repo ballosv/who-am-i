@@ -3,8 +3,9 @@ package de.ballosv.whoami.session
 import android.content.Context
 import android.os.SystemClock
 import de.ballosv.whoami.content.CelebrityHistory
+import de.ballosv.whoami.content.CelebrityImages
+import de.ballosv.whoami.content.PhotoHistory
 import de.ballosv.whoami.content.ImageStore
-import de.ballosv.whoami.content.WikipediaImages
 import de.ballosv.whoami.core.CELEBRITIES
 import de.ballosv.whoami.core.GameMode
 import de.ballosv.whoami.core.GameSettings
@@ -72,6 +73,7 @@ class HostSession(
     private var tvServer: TvServer? = null
 
     private val celebrityHistory = CelebrityHistory(appContext)
+    private val photoHistory = PhotoHistory(appContext)
     private val endpointToPlayer = HashMap<String, String>()
     private val assemblers = HashMap<String, ImageAssembler>()
     private val pendingBattleMeta = HashMap<String, Message.BattleImage>()
@@ -146,7 +148,7 @@ class HostSession(
                     engine.setPreparingProgress(0f, "Promi-Bilder werden geladen…")
                     val settings = engine.snapshot.settings
                     val pool = settings.celebrityFilter.apply(CELEBRITIES)
-                    WikipediaImages.loadQuestions(pool, settings.personCount, images, celebrityHistory) { p ->
+                    CelebrityImages.loadQuestions(pool, settings.personCount, images, celebrityHistory, photoHistory) { p ->
                         scope.launch { engine.setPreparingProgress(p * 0.7f, "Promi-Bilder werden geladen…") }
                     }
                 }

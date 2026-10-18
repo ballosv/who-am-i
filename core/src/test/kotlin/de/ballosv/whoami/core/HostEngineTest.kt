@@ -147,6 +147,16 @@ class HostEngineTest {
         assertEquals(8, decoded.snapshot.settings.tileGapDp)
     }
 
+    @Test fun creditIsRevealedOnlyWithSolution() {
+        val e = HostEngine(settings, PlayerInfo("h", "H"))
+        e.startCountdown(listOf(Question("x", "Angela", "Merkel", credit = "Foto: A. B., CC BY 2.0")), 0, 0)
+        e.tick(0)
+        assertNull(e.snapshot.credit)
+        e.buzz("h", 10, 10)
+        e.answer("h", "Merkel", 20)
+        assertEquals("Foto: A. B., CC BY 2.0", e.snapshot.credit)
+    }
+
     @Test fun allPassedRevealsWithoutPoints() {
         val e = engine()
         e.setPassed("host", true, 2_000)

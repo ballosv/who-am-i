@@ -24,6 +24,13 @@ class NameMatcherTest {
         assertFalse(full("Merkel", "Angela", "Merkel"))
     }
 
+    @Test fun firstOfSeveralGivenNamesIsEnough() {
+        assertTrue(full("Anna Netrebko", "Anna Jurjewna", "Netrebko"))
+        assertTrue(full("Johann Wolfgang Goethe", "Johann Wolfgang", "Goethe"))
+        assertTrue(full("Johann Goethe", "Johann Wolfgang", "Goethe"))
+        assertFalse(full("Wolfgang Goethe", "Johann Wolfgang", "Goethe"))
+    }
+
     @Test fun umlautsAndAccents() {
         assertTrue(last("Mueller", "Thomas", "Müller"))
         assertTrue(last("Muller", "Thomas", "Müller"))
@@ -71,6 +78,16 @@ class FreshnessTest {
             assertTrue(order.take(7).toSet() == (4..10).map { "p$it" }.toSet())
             assertTrue(order.drop(7) == listOf("p3", "p1", "p2"))
         }
+    }
+
+    @Test fun weightPrefersPopularAmongUnseen() {
+        val items = listOf("star", "nobody")
+        var starFirst = 0
+        repeat(1000) { seed ->
+            val order = Freshness.order(items, emptyList(), kotlin.random.Random(seed), weight = { if (it == "star") 9.0 else 1.0 }) { it }
+            if (order.first() == "star") starFirst++
+        }
+        assertTrue(starFirst in 850..950) // erwartet 90 %
     }
 
     @Test fun rotatesThroughAllBeforeRepeating() {
