@@ -1,0 +1,159 @@
+name: App CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "claude/**"]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests und Debug-APK bauen
+        run: |
+          chmod +x gradlew
+          ./gradlew :core:jvmTest :app:assembleDebug
+
+      - name: Version bestimmen
+        id: version
+        run: |
+          version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/debug/app-debug.apk "who-am-i-v$version.apk"
+
+      - name: APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: who-am-i-android
+          path: who-am-i-v*.apk
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      - name: Xcode-Projekt erzeugen
+        run: |
+          chmod +x gradlew
+          brew install xcodegen
+          cd iosApp && xcodegen generate
+
+      # Ohne Apple-Entwicklerkonto: unsigniert bauen. Die IPA lässt sich per Sideloading
+      # (z. B. Sideloadly/AltStore mit eigener Apple-ID) installieren, das signiert sie dabei.
+      - name: iPhone-App bauen (unsigniert)
+        run: |
+          cd iosApp
+          xcodebuild -project WhoAmI.xcodeproj -scheme WhoAmI -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/WhoAmI.app Payload/
+          version=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' ../app/build.gradle.kts)
+          zip -qry "../who-am-i-v$version.ipa" Payload
+
+      - name: Simulator-App bauen
+        run: |
+          cd iosApp
+          xcodebuild -project WhoAmI.xcodeproj -scheme WhoAmI -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build-sim \
+            CODE_SIGNING_ALLOWED=NO build
+
+      # Kurzer Start im Simulator mit Screenshot: zeigt, dass die App wirklich hochfährt.
+      - name: Im Simulator starten
+        run: |
+          app=iosApp/build-sim/Build/Products/Debug-iphonesimulator/WhoAmI.app
+          device=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone 1[0-9][^(]*\(([A-F0-9-]+)\)' | grep -oE '[A-F0-9-]{36}')
+          xcrun simctl boot "$device"
+          xcrun simctl install "$device" "$app"
+          xcrun simctl launch "$device" de.ballosv.whoami
+          sleep 25
+          xcrun simctl io "$device" screenshot ios-start.png
+          xcrun simctl spawn "$device" log show --last 2m --predicate 'process == "WhoAmI"' --style compact | tail -100 > ios-log.txt || true
+          if ! xcrun simctl spawn "$device" launchctl list | grep -q de.ballosv.whoami; then
+            echo "::error::Die App läuft im Simulator nicht mehr (abgestürzt?)"
+            cat ios-log.txt
+            exit 1
+          fi
+
+      - name: Screenshot hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator
+          path: |
+            ios-start.png
+            ios-log.txt
+
+      - name: IPA hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: who-am-i-ios
+          path: who-am-i-v*.ipa
+
+  # Jeder Push auf main (also jeder Merge eines Release-PRs) erzeugt ein Release v<versionName>
+  # mit APK und IPA. Existiert das Release schon, wird es nicht überschrieben – für ein neues
+  # Release muss versionName in app/build.gradle.kts erhöht werden.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prüfen, ob das Release schon existiert
+        id: existing
+        run: |
+          tag="v${{ needs.android.outputs.version }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release $tag existiert bereits – versionName erhöhen für ein neues Release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.existing.outputs.exists == 'false'
+        with:
+          pattern: who-am-i-*
+          merge-multiple: true
+
+      - name: Release erstellen
+        if: steps.existing.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.existing.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Who Am I? ${{ steps.existing.outputs.tag }}
+          generate_release_notes: true
+          make_latest: "true"
+          files: |
+            who-am-i-v*.apk
+            who-am-i-v*.ipa

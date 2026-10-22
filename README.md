@@ -1,6 +1,6 @@
 # Who Am I?
 
-Android-Partyspiel: Erkenne prominente Personen, während ihr Gesicht Kachel für Kachel aufgedeckt wird.
+Partyspiel für Android und iPhone: Erkenne prominente Personen, während ihr Gesicht Kachel für Kachel aufgedeckt wird.
 Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
 
 ## Funktionen
@@ -20,10 +20,13 @@ Je früher du buzzerst und richtig liegst, desto mehr Punkte gibt es.
 - **Punkteanzeige:** Zeigt die aktuell möglichen Punkte, jede Verringerung ist animiert.
   Die Rangliste ist immer nach Punkten sortiert.
 - **Countdown** vor dem Start
-- **Mehrspieler** über Nearby Connections (Bluetooth/WLAN direkt zwischen den Handys, kein Server):
+- **Mehrspieler** ohne Server, direkt zwischen den Handys:
+  - Android untereinander über Nearby Connections (Bluetooth/WLAN, auch ohne gemeinsames WLAN).
+  - Mit iPhones über das lokale WLAN (oder den Hotspot eines Handys); gefunden wird das Spiel per Bonjour.
+    Android-Hosts bieten ihr Spiel immer auf beiden Wegen an.
   - Lobby mit Namen und „Bereit“. Sind alle bereit, startet das Spiel automatisch.
   - Einladen: Spieler in der Nähe mit aktiviertem *„Für Einladungen erreichbar“* bekommen eine
-    Benachrichtigung. Antippen öffnet die App und tritt direkt bei. Alternativ lässt sich ein
+    Benachrichtigung (nur Android; iOS erlaubt keine solche Suche im Hintergrund). Antippen öffnet die App und tritt direkt bei. Alternativ lässt sich ein
     Einladungslink (`whoami://join?code=…`) oder der Code teilen.
 - **Battle-Modus:** Jeder wählt eigene Fotos (samt Namen) aus. Die Bilder kommen reihum dran; der
   Besitzer des aktiven Bildes kann nicht lösen und ist in der Rangliste markiert.
@@ -57,8 +60,8 @@ nimmt nur Einzelporträts und schneidet sie auf das Gesicht zu. Pro Person merkt
 schon gezeigt wurden, damit möglichst jedes Mal ein anderes kommt. Notfalls wird das Artikelbild der
 deutschsprachigen Wikipedia verwendet. Urheber und Lizenz stehen bei der Auflösung unter dem Namen.
 Deshalb braucht der Promi-Modus Internet auf dem Host-Gerät; die Mitspieler bekommen die Bilder vom Host.
-**Personen:** 426 von Hand gepflegte Personen (`core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt`)
-plus mehrere Tausend aus Wikidata erzeugte (`core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv`).
+**Personen:** 426 von Hand gepflegte Personen (`core/src/commonMain/kotlin/de/ballosv/whoami/core/Celebrities.kt`)
+plus mehrere Tausend aus Wikidata erzeugte (`core/data/celebrities_wikidata.tsv`).
 Die Liste erzeugt `tools/generate_celebrities.py` über den Workflow *Personenliste erzeugen*: Bereich aus dem Beruf,
 Herkunft aus der Staatsangehörigkeit, Jahrzehnte näherungsweise aus den Lebensdaten. **Bekanntheit** = Seitenaufrufe
 der deutschen Wikipedia (Vorauswahl über 60 Tage, dann Median der Monatsaufrufe der letzten 12 Monate, robust gegen Nachrichtenwellen);
@@ -73,31 +76,46 @@ deren letzter Auftritt am längsten zurückliegt. So wiederholt sich über viele
 ## Projektaufbau
 
 ```
-core/   Reines Kotlin-Modul ohne Android: Spielregeln (HostEngine), Punkte, Namensabgleich,
-        Uhrensynchronisation, Netzwerkprotokoll – mit Unit-Tests
-app/    Android-App (Jetpack Compose)
-  session/   HostSession (führt die Engine aus) und GuestSession (Mitspieler)
-  net/       Nearby Connections
-  tv/        HTTP-Server für die TV-Ansicht (Seite: app/src/main/assets/tv/index.html)
-  invite/    Hintergrunddienst für Einladungs-Benachrichtigungen
-  content/   Promi-Liste, Wikipedia-Lader, Bildaufbereitung
-  ui/        Bildschirme
+core/     Reines Kotlin-Multiplatform-Modul: Spielregeln (HostEngine), Punkte, Namensabgleich,
+          Uhrensynchronisation, Netzwerkprotokoll, Personenliste (core/data) – mit Unit-Tests
+shared/   Gemeinsamer App-Code für Android und iOS (Compose Multiplatform)
+  commonMain/  Oberfläche (ui), Sitzungen (session), WLAN-Mehrspieler (net), TV-Server (tv),
+               Promi-Bilder (content); Plattformschnittstellen in platform/Platform.kt
+  androidMain/ Nearby Connections, ML-Kit-Gesichtserkennung, Spracheingabe, Fotoauswahl, NSD
+  iosMain/     Vision-Gesichtserkennung, Spracherkennung, Foto-Picker, Bonjour, Einstieg MainViewController
+  tv/          TV-Seite (index.html), wird beim Bauen eingebettet
+app/      Android-App: Activity, Application, Hintergrunddienst für Einladungen
+iosApp/   iPhone-App: SwiftUI-Hülle, Info.plist, Icon; Xcode-Projekt per XcodeGen (project.yml)
 ```
 
 ## Bauen
 
-Voraussetzungen: JDK 17 und das Android SDK (API 35).
+**Android** – Voraussetzungen: JDK 17 und das Android SDK (API 35).
 
 ```bash
-./gradlew :core:test          # Spiellogik testen
+./gradlew :core:jvmTest       # Spiellogik testen
 ./gradlew :app:assembleDebug  # APK: app/build/outputs/apk/debug/
 ```
 
-GitHub Actions baut bei jedem Push und Pull Request; das Debug-APK hängt als Artefakt am Workflow-Lauf.
+**iPhone** – Voraussetzungen: Mac mit Xcode 16, JDK 17 und [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+```bash
+cd iosApp && xcodegen generate && open WhoAmI.xcodeproj
+```
+
+GitHub Actions baut bei jedem Push und Pull Request beide Apps (die iPhone-App auf einem Mac-Runner,
+inklusive Probestart im Simulator); APK und IPA hängen als Artefakte am Workflow-Lauf.
 
 **Releases** entstehen automatisch: Jeder Merge nach `main` erzeugt ein GitHub-Release `v<versionName>`
-(aus `app/build.gradle.kts`) mit der APK zum direkten Download unter *Releases*. Für ein neues Release
-vorher `versionName` und `versionCode` erhöhen – ein bestehendes Release wird nicht überschrieben.
+(aus `app/build.gradle.kts`) mit APK und IPA zum direkten Download unter *Releases*. Für ein neues Release
+vorher `versionName` und `versionCode` erhöhen (und in `iosApp/project.yml` `MARKETING_VERSION` /
+`CURRENT_PROJECT_VERSION`) – ein bestehendes Release wird nicht überschrieben.
+
+**iPhone-App installieren (ohne Apple-Entwicklerkonto):** Die IPA ist unsigniert. Mit
+[Sideloadly](https://sideloadly.io) oder AltStore und der eigenen (kostenlosen) Apple-ID lässt sie sich
+auf das iPhone bringen; das Tool signiert sie dabei. Mit einer kostenlosen Apple-ID läuft die App
+7 Tage, danach erneut installieren. Mit einem Apple-Entwicklerkonto könnte der Workflow die App
+stattdessen direkt nach TestFlight hochladen.
 
 ## Branches
 

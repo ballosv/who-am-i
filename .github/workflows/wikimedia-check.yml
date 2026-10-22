@@ -7,8 +7,8 @@ on:
     branches: ["claude/**", "feature/**"]
     paths:
       - "tools/check_wikimedia.py"
-      - "core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt"
-      - "app/src/main/kotlin/de/ballosv/whoami/content/**"
+      - "core/src/commonMain/kotlin/de/ballosv/whoami/core/Celebrities.kt"
+      - "shared/src/commonMain/kotlin/de/ballosv/whoami/content/**"
 
 jobs:
   check:

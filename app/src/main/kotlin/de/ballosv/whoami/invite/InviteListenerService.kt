@@ -22,7 +22,9 @@ import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
 import de.ballosv.whoami.MainActivity
 import de.ballosv.whoami.R
 import de.ballosv.whoami.WhoAmIApp
+import de.ballosv.whoami.net.GameAd
 import de.ballosv.whoami.net.NearbyConfig
+import de.ballosv.whoami.platform.joinUri
 
 /**
  * Sucht im Hintergrund nach Spielen in der Nähe, deren Host gerade einlädt, und zeigt dafür
@@ -82,11 +84,11 @@ class InviteListenerService : Service() {
             .build()
     }
 
-    private fun showInvite(ad: NearbyConfig.GameAd) {
+    private fun showInvite(ad: GameAd) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
-        val intent = Intent(Intent.ACTION_VIEW, joinUri(ad.code), this, MainActivity::class.java)
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(joinUri(ad.code)), this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending = PendingIntent.getActivity(
             this, ad.code.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -106,8 +108,6 @@ class InviteListenerService : Service() {
     companion object {
         private const val TAG = "WhoAmI.Invites"
         private const val ONGOING_ID = 1
-
-        fun joinUri(code: String): Uri = Uri.parse("whoami://join?code=$code")
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, InviteListenerService::class.java))
