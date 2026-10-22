@@ -4,13 +4,13 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import de.ballosv.whoami.content.FaceCropper
+import de.ballosv.whoami.platform.AndroidPlatform
 
 class WhoAmIApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Modell der Gesichtserkennung schon beim Start über die Play-Dienste anfordern
-        FaceCropper.prepare(this)
+        // Plattformzugriffe für den gemeinsamen Code; fordert auch das Modell der Gesichtserkennung an
+        AndroidPlatform.init(this)
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_INVITES, "Spiel-Einladungen", NotificationManager.IMPORTANCE_HIGH).apply {

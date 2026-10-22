@@ -12,3 +12,7 @@ build/
 *.keystore
 !debug.keystore
 __pycache__/
+
+# iOS (erzeugtes Xcode-Projekt)
+iosApp/WhoAmI.xcodeproj/
+iosApp/build/

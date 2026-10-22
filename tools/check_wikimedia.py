@@ -84,7 +84,7 @@ def commons_photos(qid):
 
 def main():
     out = []
-    titles = curated_titles("core/src/main/kotlin/de/ballosv/whoami/core/Celebrities.kt")
+    titles = curated_titles("core/src/commonMain/kotlin/de/ballosv/whoami/core/Celebrities.kt")
     out.append(f"## Personenliste: {len(titles)} Einträge\n")
     arts = articles(titles)
     missing = [t for t, p in arts.items() if p is None or p.get("missing")]
