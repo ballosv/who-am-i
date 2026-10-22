@@ -93,8 +93,13 @@ jobs:
           xcrun simctl boot "$device"
           xcrun simctl install "$device" "$app"
           xcrun simctl launch "$device" de.ballosv.whoami
-          sleep 25
+          sleep 20
           xcrun simctl io "$device" screenshot ios-start.png
+          # Zweiter Start mit automatischem Einzelspiel: Promi-Fotos laden, Gesichtserkennung, Kacheln
+          xcrun simctl terminate "$device" de.ballosv.whoami
+          xcrun simctl launch "$device" de.ballosv.whoami -autostart
+          sleep 45
+          xcrun simctl io "$device" screenshot ios-game.png
           xcrun simctl spawn "$device" log show --last 2m --predicate 'process == "WhoAmI"' --style compact | tail -100 > ios-log.txt || true
           if ! xcrun simctl spawn "$device" launchctl list | grep -q de.ballosv.whoami; then
             echo "::error::Die App läuft im Simulator nicht mehr (abgestürzt?)"
@@ -109,6 +114,7 @@ jobs:
           name: ios-simulator
           path: |
             ios-start.png
+            ios-game.png
             ios-log.txt
 
       - name: IPA hochladen

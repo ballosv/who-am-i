@@ -18,7 +18,8 @@ struct WhoAmIApp: App {
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        // „-autostart“: Probestart im Simulator (CI) startet direkt ein Einzelspiel
+        MainViewControllerKt.MainViewController(autoStart: ProcessInfo.processInfo.arguments.contains("-autostart"))
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
