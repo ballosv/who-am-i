@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Erzeugt aus Wikidata eine Liste bekannter Personen samt Kategorien für die App
-(core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv).
+(core/data/celebrities_wikidata.tsv).
 
 Bekanntheit = wie oft der Artikel in der deutschen Wikipedia aufgerufen wird: Vorauswahl über
 den Median der Tagesaufrufe der letzten 60 Tage (gebündelt, schnell), danach für die besten
@@ -43,7 +43,7 @@ UA = "WhoAmI-Generator/0.3 (https://github.com/ballosv/who-am-i)"
 ENDPOINT = "https://query.wikidata.org/sparql"
 WIKI_API = "https://de.wikipedia.org/w/api.php"
 PAGEVIEWS = "https://wikimedia.org/api/rest_v1/metrics/pageviews"
-OUT = "core/src/main/resources/de/ballosv/whoami/core/celebrities_wikidata.tsv"
+OUT = "core/data/celebrities_wikidata.tsv"
 # Bei weniger Sprachversionen wird die Politiker-Abfrage so groß, dass Wikidata sie abschneidet.
 MIN_LINKS = int(os.environ.get("MIN_LINKS", "20"))
 MAX_CANDIDATES = int(os.environ.get("MAX_CANDIDATES", "30000"))

@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "WhoAmI"
 include(":core")
+include(":shared")
 include(":app")

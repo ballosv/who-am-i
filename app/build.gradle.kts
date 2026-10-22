@@ -13,8 +13,8 @@ android {
         applicationId = "de.ballosv.whoami"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.6.0"
+        versionCode = 8
+        versionName = "0.7.0"
     }
 
     buildTypes {
@@ -39,7 +39,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
