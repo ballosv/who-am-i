@@ -100,7 +100,14 @@ private class SpeechListener {
         silence = NSTimer.scheduledTimerWithTimeInterval(1.2, repeats = false) { _ -> finish() }
     }
 
-    fun finish() {
+    /** Abbrechen, ohne das Ergebnis zu melden (z. B. wenn der Bildschirm verlassen wird). */
+    fun cancel() {
+        onDone = null
+        text = ""
+        finish(silent = true)
+    }
+
+    fun finish(silent: Boolean = false) {
         val eng = engine ?: return
         engine = null
         silence?.invalidate()
@@ -115,7 +122,7 @@ private class SpeechListener {
         val result = text
         onDone?.invoke(result)
         onDone = null
-        if (result.isBlank()) showToast("Nichts verstanden")
+        if (result.isBlank() && !silent) showToast("Nichts verstanden")
     }
 
     private companion object {
@@ -127,7 +134,7 @@ private class SpeechListener {
 actual fun rememberSpeechInput(onResult: (String) -> Unit): (() -> Unit)? {
     val callback by rememberUpdatedState(onResult)
     val listener = remember { SpeechListener() }
-    DisposableEffect(listener) { onDispose { listener.finish() } }
+    DisposableEffect(listener) { onDispose { listener.cancel() } }
     return { listener.start { callback(it) } }
 }
 
